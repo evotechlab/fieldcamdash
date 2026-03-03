@@ -10,21 +10,15 @@
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
 
-    <div id="login-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+    <div id="login-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50 hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
-            <div class="mb-6">
-                <i class="fas fa-lock text-5xl text-blue-500 mb-4"></i>
-                <h2 class="text-2xl font-bold text-gray-800">Accesso Riservato</h2>
-                <p class="text-sm text-gray-500 mt-2">Inserisci la password per accedere all'archivio</p>
-            </div>
+            <i class="fab fa-dropbox text-6xl text-blue-500 mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Accesso Operatore</h2>
+            <p class="text-sm text-gray-500 mb-6">Connetti il tuo account Dropbox per visualizzare le cartelle dell'App.</p>
             
-            <input type="password" id="password-input" class="w-full border border-gray-300 p-3 rounded mb-4 focus:outline-none focus:border-blue-500" placeholder="Password..." onkeypress="handleEnter(event)">
-            
-            <button onclick="attemptLogin()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 transition duration-200">
-                Entra
+            <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 transition duration-200 shadow">
+                <i class="fab fa-dropbox mr-2"></i> Accedi con Dropbox
             </button>
-            
-            <p id="login-error" class="text-red-500 text-sm mt-3 hidden"><i class="fas fa-exclamation-circle"></i> Password errata!</p>
         </div>
     </div>
 
@@ -34,114 +28,103 @@
                 <h1 class="text-2xl font-bold"><i class="fas fa-camera-retro mr-2"></i> Dashboard Foto</h1>
                 <div class="flex items-center space-x-4">
                     <span id="status" class="text-sm bg-blue-800 px-3 py-1 rounded-full"><i class="fas fa-sync fa-spin"></i> Connessione...</span>
-                    <button onclick="logout()" class="text-sm hover:underline text-blue-200"><i class="fas fa-sign-out-alt"></i> Esci</button>
+                    <button onclick="logout()" class="text-sm hover:underline text-blue-200"><i class="fas fa-sign-out-alt"></i> Disconnetti</button>
                 </div>
             </div>
         </header>
 
         <main class="container mx-auto mt-8 p-4 bg-white rounded-lg shadow min-h-[60vh]">
-            
-            <div class="flex items-center space-x-2 text-blue-600 mb-6 pb-4 border-b border-gray-200" id="breadcrumbs">
-                </div>
+            <div class="flex items-center space-x-2 text-blue-600 mb-6 pb-4 border-b border-gray-200" id="breadcrumbs"></div>
 
             <div id="loading" class="text-center py-10 hidden">
                 <i class="fas fa-spinner fa-spin text-4xl text-blue-500"></i>
-                <p class="mt-2 text-gray-500">Lettura cartella in corso...</p>
+                <p class="mt-2 text-gray-500">Caricamento in corso...</p>
             </div>
 
-            <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                </div>
-
-            <div id="metadata-section" class="mt-12 hidden">
-                <h3 class="text-lg font-bold border-b pb-2 mb-4 text-gray-600"><i class="fas fa-database mr-2"></i>Metadati in questa cartella</h3>
-                <ul id="metadata-list" class="space-y-2">
-                    </ul>
-            </div>
+            <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </main>
     </div>
 
     <script>
         // ==========================================
-        // IMPOSTAZIONI DI CONFIGURAZIONE
+        // CONFIGURAZIONE DROPBOX OAUTH
         // ==========================================
-        const DASHBOARD_PASSWORD = 'password123'; // CAMBIA QUESTA PASSWORD!
-        const DROPBOX_ACCESS_TOKEN = '0kimqzc29he9w1u'; // IL TUO TOKEN DROPBOX
+        const DROPBOX_APP_KEY = "0kimqzc29he9w1u"; 
         
+        // Deve essere l'URL ESATTO in cui è ospitata la pagina (es. su GitHub Pages)
+        const REDIRECT_URI = "https://evotechlab.github.io/fieldcamdash/"; 
+        
+        // Lascia vuoto ("") per la radice dell'App Folder, oppure specifica la cartella (es. "/Foto")
+        const BASE_FOLDER = ""; 
+
+        let accessToken = localStorage.getItem("db_access");
         let dbx;
-        let currentPath = '';
 
-        // --- SISTEMA DI LOGIN ---
-
-        // Controlla se l'utente è già loggato in questa sessione
+        // Inizializzazione al caricamento della pagina
         document.addEventListener('DOMContentLoaded', () => {
-            if (sessionStorage.getItem('dashboard_logged_in') === 'true') {
+            // 1. Controlliamo se stiamo tornando da Dropbox con il token nell'URL (URL Fragment)
+            if (window.location.hash.includes('access_token')) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const token = hashParams.get('access_token');
+                
+                if (token) {
+                    // Salviamo il token
+                    localStorage.setItem("db_access", token);
+                    accessToken = token;
+                    // Ripuliamo l'URL per estetica e sicurezza
+                    window.history.replaceState(null, null, window.location.pathname);
+                }
+            }
+
+            // 2. Se abbiamo il token, apriamo la dashboard, altrimenti schermata di login
+            if (accessToken) {
                 inizializzaDashboard();
             } else {
-                document.getElementById('password-input').focus();
+                document.getElementById('login-screen').classList.remove('hidden');
             }
         });
 
-        // Permette di premere "Invio" per loggarsi
-        function handleEnter(event) {
-            if (event.key === 'Enter') {
-                attemptLogin();
-            }
-        }
-
-        function attemptLogin() {
-            const inputElement = document.getElementById('password-input');
-            const errorElement = document.getElementById('login-error');
-            
-            if (inputElement.value === DASHBOARD_PASSWORD) {
-                sessionStorage.setItem('dashboard_logged_in', 'true');
-                errorElement.classList.add('hidden');
-                inizializzaDashboard();
-            } else {
-                errorElement.classList.remove('hidden');
-                inputElement.value = '';
-                inputElement.focus();
-            }
+        // Genera il link di autorizzazione e reindirizza l'utente a Dropbox
+        function avviaLoginDropbox() {
+            // Usiamo il flusso "Implicit Grant" (response_type=token) ideale per le app client-side
+            const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${DROPBOX_APP_KEY}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+            window.location.href = authUrl;
         }
 
         function logout() {
-            sessionStorage.removeItem('dashboard_logged_in');
-            window.location.reload(); // Ricarica la pagina tornando al login
+            localStorage.removeItem("db_access");
+            window.location.reload();
         }
 
-        // --- FUNZIONI DELLA DASHBOARD DROPBOX ---
-
-        function inizializzaDashboard() {
-            // Nascondi login, mostra app
+        async function inizializzaDashboard() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
             
-            // Inizializza Dropbox
-            dbx = new Dropbox.Dropbox({ accessToken: DROPBOX_ACCESS_TOKEN });
+            dbx = new Dropbox.Dropbox({ accessToken: accessToken });
             
-            testConnection();
-            loadFolder('');
-        }
-
-        async function testConnection() {
             try {
+                // Verifichiamo se il token è ancora valido
                 await dbx.usersGetCurrentAccount();
                 document.getElementById('status').innerHTML = '<i class="fas fa-check-circle text-green-400"></i> Connesso';
+                loadFolder(BASE_FOLDER);
             } catch (error) {
-                document.getElementById('status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-400"></i> Errore di connessione';
-                console.error("Errore di connessione Dropbox:", error);
+                // Se c'è un errore 401, il token salvato è scaduto o revocato
+                if (error.status === 401) {
+                    alert("La sessione è scaduta. Effettua nuovamente l'accesso.");
+                    logout();
+                } else {
+                    document.getElementById('status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-400"></i> Errore di connessione';
+                    console.error(error);
+                }
             }
         }
 
+        // --- FUNZIONI DI LETTURA DROPBOX ---
         async function loadFolder(path) {
-            currentPath = path;
             const grid = document.getElementById('content-grid');
             const loading = document.getElementById('loading');
-            const metaSection = document.getElementById('metadata-section');
-            const metaList = document.getElementById('metadata-list');
             
             grid.innerHTML = '';
-            metaList.innerHTML = '';
-            metaSection.classList.add('hidden');
             loading.classList.remove('hidden');
             renderBreadcrumbs(path);
 
@@ -150,35 +133,28 @@
                 const entries = response.result.entries;
 
                 const folders = entries.filter(e => e['.tag'] === 'folder');
-                const files = entries.filter(e => e['.tag'] === 'file');
-                const photos = files.filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f.name));
-                const metadata = files.filter(f => /\.(json|txt|xml|csv)$/i.test(f.name));
+                const photos = entries.filter(e => e['.tag'] === 'file'); // Filtra estensioni se necessario
 
                 loading.classList.add('hidden');
 
-                // Renderizza Cartelle
                 folders.forEach(folder => {
                     const card = document.createElement('div');
-                    card.className = "bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-lg p-4 cursor-pointer transition duration-150 ease-in-out flex items-center shadow-sm hover:shadow-md";
+                    card.className = "bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-lg p-4 cursor-pointer flex items-center shadow-sm";
                     card.onclick = () => loadFolder(folder.path_display);
-                    card.innerHTML = `
-                        <i class="fas fa-folder text-yellow-400 text-3xl mr-4"></i>
-                        <span class="font-medium truncate text-gray-700" title="${folder.name}">${folder.name}</span>
-                    `;
+                    card.innerHTML = `<i class="fas fa-folder text-yellow-400 text-3xl mr-4"></i><span class="font-medium truncate">${folder.name}</span>`;
                     grid.appendChild(card);
                 });
 
-                // Renderizza Foto
                 photos.forEach(photo => {
                     const card = document.createElement('div');
-                    card.className = "bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm flex flex-col hover:shadow-md transition duration-150";
+                    card.className = "bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm flex flex-col";
                     card.innerHTML = `
                         <div class="bg-gray-200 h-40 flex items-center justify-center text-gray-400 border-b border-gray-100">
                             <i class="fas fa-image text-5xl"></i>
                         </div>
                         <div class="p-4 flex-1 flex flex-col justify-between">
                             <p class="text-sm font-medium text-gray-700 truncate mb-3" title="${photo.name}">${photo.name}</p>
-                            <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded transition shadow-sm">
+                            <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded shadow-sm">
                                 <i class="fas fa-download mr-1"></i> Scarica
                             </button>
                         </div>
@@ -186,27 +162,8 @@
                     grid.appendChild(card);
                 });
 
-                // Renderizza Metadati
-                if (metadata.length > 0) {
-                    metaSection.classList.remove('hidden');
-                    metadata.forEach(meta => {
-                        const li = document.createElement('li');
-                        li.className = "flex items-center justify-between bg-gray-50 p-3 rounded border border-gray-200";
-                        li.innerHTML = `
-                            <span class="text-sm text-gray-700 font-mono"><i class="fas fa-file-code text-gray-500 mr-2"></i> ${meta.name}</span>
-                            <button onclick="downloadFile('${meta.path_display}', '${meta.name}')" class="text-blue-600 hover:text-blue-800 hover:underline text-sm font-medium">Scarica File</button>
-                        `;
-                        metaList.appendChild(li);
-                    });
-                }
-
-                if (entries.length === 0) {
-                    grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12"><i class="fas fa-folder-open text-4xl mb-3 text-gray-300"></i><br>Questa cartella è vuota.</div>';
-                }
-
             } catch (error) {
                 loading.classList.add('hidden');
-                grid.innerHTML = `<div class="col-span-full bg-red-50 text-red-600 rounded p-4 text-center border border-red-200"><i class="fas fa-exclamation-triangle mr-2"></i>Errore nel caricamento. Verifica la connessione o ricarica la pagina.</div>`;
                 console.error(error);
             }
         }
@@ -222,22 +179,26 @@
                 a.click();
                 document.body.removeChild(a);
             } catch (error) {
-                alert("Errore durante la generazione del link di download.");
+                alert("Errore durante la generazione del link.");
                 console.error(error);
             }
         }
 
         function renderBreadcrumbs(path) {
             const breadcrumbs = document.getElementById('breadcrumbs');
-            if (!path || path === '') {
-                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:underline flex items-center"><i class="fas fa-home mr-1"></i> Root (Tutte le Cartelle)</button>`;
+            // Se siamo alla radice (BASE_FOLDER)
+            if (path === BASE_FOLDER) {
+                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:underline flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
                 return;
             }
 
-            const parts = path.split('/').filter(p => p !== '');
-            let html = `<button onclick="loadFolder('')" class="hover:underline text-gray-500 flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
+            // Calcola il percorso relativo rimuovendo la BASE_FOLDER
+            const relativePath = path.substring(BASE_FOLDER.length);
+            const parts = relativePath.split('/').filter(p => p !== '');
             
-            let currentBuildPath = '';
+            let html = `<button onclick="loadFolder('${BASE_FOLDER}')" class="hover:underline text-gray-500 flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
+            
+            let currentBuildPath = BASE_FOLDER;
             parts.forEach((part, index) => {
                 currentBuildPath += '/' + part;
                 html += ` <i class="fas fa-chevron-right text-xs text-gray-400 mx-2"></i> `;
