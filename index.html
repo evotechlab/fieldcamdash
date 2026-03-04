@@ -3,58 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Operatore - Archivio Foto</title>
+    <title>Dashboard Admin - Archivio Cantieri</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Animazione per i placeholder in caricamento */
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
+<body class="bg-slate-50 text-gray-800 font-sans min-h-screen flex flex-col">
 
-    <div id="login-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
-            <i class="fab fa-dropbox text-6xl text-blue-500 mb-4"></i>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">Accesso Amministratore</h2>
-            <p class="text-sm text-gray-500 mb-6">Connetti il tuo account per visualizzare l'archivio.</p>
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="bg-blue-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fab fa-dropbox text-5xl text-blue-600"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Accesso Admin</h2>
+            <p class="text-sm text-gray-500 mb-8">Connetti il tuo account per accedere all'archivio dei cantieri.</p>
             
-            <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 transition duration-200 shadow">
+            <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-4 rounded-xl hover:bg-blue-700 transition duration-300 shadow-lg hover:shadow-xl flex justify-center items-center">
                 <i class="fas fa-shield-alt mr-2"></i> Accesso Sicuro
             </button>
         </div>
     </div>
 
-    <div id="app-container" class="hidden">
-        <header class="bg-blue-600 text-white p-4 shadow-md">
-            <div class="container mx-auto flex justify-between items-center">
-                <h1 class="text-2xl font-bold"><i class="fas fa-camera-retro mr-2"></i> Dashboard Foto</h1>
+    <div id="app-container" class="hidden flex-1 flex flex-col">
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-solar-panel text-xl"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-800">FieldCam Dashboard</h1>
+                </div>
                 <div class="flex items-center space-x-4">
-                    <span id="status" class="text-sm bg-blue-800 px-3 py-1 rounded-full"><i class="fas fa-sync fa-spin"></i> Connessione...</span>
-                    <button onclick="logout()" class="text-sm hover:underline text-blue-200"><i class="fas fa-sign-out-alt"></i> Disconnetti</button>
+                    <span id="status" class="text-sm bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-full font-medium flex items-center">
+                        <i class="fas fa-circle text-[10px] mr-2 text-green-500"></i> Online
+                    </span>
+                    <button onclick="logout()" class="text-gray-500 hover:text-red-600 transition p-2 rounded-lg hover:bg-red-50">
+                        <i class="fas fa-sign-out-alt text-lg"></i>
+                    </button>
                 </div>
             </div>
         </header>
 
-        <main class="container mx-auto mt-8 p-4 bg-white rounded-lg shadow min-h-[60vh]">
-            <div class="flex items-center space-x-2 text-blue-600 mb-6 pb-4 border-b border-gray-200" id="breadcrumbs"></div>
+        <main class="container mx-auto px-4 py-8 flex-1">
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center space-x-2 text-sm text-gray-600 mb-6" id="breadcrumbs"></div>
 
-            <div id="loading" class="text-center py-10 hidden">
-                <i class="fas fa-spinner fa-spin text-4xl text-blue-500"></i>
-                <p class="mt-2 text-gray-500">Caricamento in corso...</p>
+            <div id="metadata-panel" class="hidden bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg mb-8 text-white">
+                <div class="flex items-center justify-between border-b border-blue-400/30 pb-4 mb-4">
+                    <h2 class="text-2xl font-bold flex items-center"><i class="fas fa-clipboard-list mr-3"></i> Dati Cantiere</h2>
+                    <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">Metadati Rilevati</span>
+                </div>
+                <div id="metadata-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    </div>
             </div>
 
-            <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+            <div id="loading" class="text-center py-20 hidden">
+                <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
+                <p class="text-gray-500 font-medium">Sincronizzazione archivio...</p>
+            </div>
+
+            <div id="folders-section" class="mb-8 hidden">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-folder-open text-yellow-500 mr-2"></i> Sottocartelle</h3>
+                <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            </div>
+
+            <div id="photos-section" class="hidden">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-images text-blue-500 mr-2"></i> Fotografie</h3>
+                <div id="photos-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+            </div>
+            
+            <div id="empty-state" class="hidden text-center py-20">
+                <div class="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-folder-minus text-4xl text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-700">Cartella Vuota</h3>
+                <p class="text-gray-500">Non ci sono file o sottocartelle in questa directory.</p>
+            </div>
         </main>
     </div>
 
     <script>
         // ==========================================
-        // CONFIGURAZIONE PROXY CLOUDFLARE
+        // CONFIGURAZIONE
         // ==========================================
         const WORKER_URL = "https://dfd89ks.sviluppo-49a.workers.dev"; 
-        
-        // Base Folder non esiste più nel front-end! La radice è semplicemente ""
         const ROOT_PATH = ""; 
         let accessToken = localStorage.getItem("db_admin_access");
 
-        // Helper per chiamare il proxy in modo pulito
+        // --- CORE API CALLER ---
         async function apiCall(action, payload = {}) {
             const res = await fetch(WORKER_URL, {
                 method: "POST",
@@ -73,6 +119,7 @@
             return res.json();
         }
 
+        // --- INIZIALIZZAZIONE ---
         document.addEventListener('DOMContentLoaded', () => {
             if (window.location.hash.includes('access_token')) {
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -83,12 +130,8 @@
                     window.history.replaceState(null, null, window.location.pathname);
                 }
             }
-
-            if (accessToken) {
-                inizializzaDashboard();
-            } else {
-                document.getElementById('login-screen').classList.remove('hidden');
-            }
+            if (accessToken) inizializzaDashboard();
+            else document.getElementById('login-screen').classList.remove('hidden');
         });
 
         async function avviaLoginDropbox() {
@@ -110,69 +153,201 @@
             document.getElementById('app-container').classList.remove('hidden');
             
             try {
-                // Sostituisce dbx.usersGetCurrentAccount()
                 await apiCall("getCurrentAccount");
-                document.getElementById('status').innerHTML = '<i class="fas fa-check-circle text-green-400"></i> Connesso';
                 loadFolder(ROOT_PATH);
             } catch (error) {
-                document.getElementById('status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-400"></i> Errore';
-                if(error.message !== "Sessione scaduta") console.error(error);
+                if(error.message !== "Sessione scaduta") alert("Errore di connessione a Dropbox via Proxy.");
             }
         }
 
-        // --- FUNZIONI DI LETTURA VIA PROXY ---
+        // --- MOTORE PRINCIPALE DELLA DASHBOARD ---
         async function loadFolder(path) {
-            const grid = document.getElementById('content-grid');
             const loading = document.getElementById('loading');
+            const foldersGrid = document.getElementById('folders-grid');
+            const photosGrid = document.getElementById('photos-grid');
+            const foldersSec = document.getElementById('folders-section');
+            const photosSec = document.getElementById('photos-section');
+            const emptyState = document.getElementById('empty-state');
+            const metadataPanel = document.getElementById('metadata-panel');
             
-            grid.innerHTML = '';
+            // Reset UI
+            foldersGrid.innerHTML = '';
+            photosGrid.innerHTML = '';
+            foldersSec.classList.add('hidden');
+            photosSec.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            metadataPanel.classList.add('hidden');
             loading.classList.remove('hidden');
+            
             renderBreadcrumbs(path);
 
             try {
-                // Sostituisce dbx.filesListFolder()
                 const data = await apiCall("listFolder", { path: path });
                 const entries = data.entries || [];
 
                 const folders = entries.filter(e => e['.tag'] === 'folder');
-                const photos = entries.filter(e => e['.tag'] === 'file');
+                const files = entries.filter(e => e['.tag'] === 'file');
+                
+                // Separiamo foto da file JSON
+                const photos = files.filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f.name));
+                const jsonFiles = files.filter(f => f.name.endsWith('.json'));
 
                 loading.classList.add('hidden');
 
-                folders.forEach(folder => {
-                    const card = document.createElement('div');
-                    card.className = "bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-lg p-4 cursor-pointer flex items-center shadow-sm";
-                    card.onclick = () => loadFolder(folder.path_display);
-                    card.innerHTML = `<i class="fas fa-folder text-yellow-400 text-3xl mr-4"></i><span class="font-medium truncate">${folder.name}</span>`;
-                    grid.appendChild(card);
-                });
+                if (entries.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
 
-                photos.forEach(photo => {
-                    const card = document.createElement('div');
-                    card.className = "bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm flex flex-col";
-                    card.innerHTML = `
-                        <div class="bg-gray-200 h-40 flex items-center justify-center text-gray-400 border-b border-gray-100">
-                            <i class="fas fa-file-alt text-5xl"></i>
-                        </div>
-                        <div class="p-4 flex-1 flex flex-col justify-between">
-                            <p class="text-sm font-medium text-gray-700 truncate mb-3" title="${photo.name}">${photo.name}</p>
-                            <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded shadow-sm">
-                                <i class="fas fa-download mr-1"></i> Scarica
-                            </button>
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
+                // 1. GESTIONE METADATI (Ricerca automatica file JSON)
+                if (jsonFiles.length > 0) {
+                    // Prende il primo file JSON trovato e lo processa
+                    loadMetadataCard(jsonFiles[0].path_display, photos.length);
+                }
+
+                // 2. RENDER CARTELLE
+                if (folders.length > 0) {
+                    foldersSec.classList.remove('hidden');
+                    folders.forEach(folder => {
+                        const safeId = "fcount-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
+                        const card = document.createElement('div');
+                        card.className = "bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between group";
+                        card.onclick = () => loadFolder(folder.path_display);
+                        card.innerHTML = `
+                            <div class="flex items-center overflow-hidden">
+                                <div class="bg-yellow-50 text-yellow-500 w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-folder text-xl"></i>
+                                </div>
+                                <span class="font-semibold text-gray-700 truncate" title="${folder.name}">${folder.name}</span>
+                            </div>
+                            <span id="${safeId}" class="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md ml-2"><i class="fas fa-circle-notch fa-spin"></i></span>
+                        `;
+                        foldersGrid.appendChild(card);
+
+                        // Carica asincronamente il conteggio dei file per questa sottocartella
+                        fetchFolderCount(folder.path_display, safeId);
+                    });
+                }
+
+                // 3. RENDER FOTO (Con anteprime)
+                if (photos.length > 0) {
+                    photosSec.classList.remove('hidden');
+                    photos.forEach(photo => {
+                        const safeId = "img-" + photo.id.replace(/[^a-zA-Z0-9]/g, '');
+                        const card = document.createElement('div');
+                        card.className = "bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col";
+                        
+                        card.innerHTML = `
+                            <div class="h-40 relative overflow-hidden bg-gray-100 flex items-center justify-center skeleton" id="container-${safeId}">
+                                <img id="${safeId}" src="" class="w-full h-full object-cover hidden transition-transform duration-700 group-hover:scale-110" alt="${photo.name}">
+                                <div class="absolute inset-0 bg-gray-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="bg-white text-gray-900 font-bold py-2 px-4 rounded-full shadow-lg hover:bg-blue-50 transform translate-y-4 group-hover:translate-y-0 transition-all">
+                                        <i class="fas fa-download mr-1"></i> Scarica
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-white border-t border-gray-50 flex items-center justify-between">
+                                <p class="text-xs font-medium text-gray-600 truncate mr-2" title="${photo.name}">${photo.name}</p>
+                                <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded">JPG</span>
+                            </div>
+                        `;
+                        photosGrid.appendChild(card);
+
+                        // Carica asincronamente l'immagine
+                        fetchImagePreview(photo.path_display, safeId);
+                    });
+                }
 
             } catch (error) {
                 loading.classList.add('hidden');
                 console.error(error);
+                alert("Errore nel caricamento della cartella.");
             }
         }
 
+        // --- FUNZIONI ASINCRONE DI SUPPORTO ---
+
+        // 1. Genera il pannello riassuntivo leggendo il file JSON
+        async function loadMetadataCard(jsonPath, photoCount) {
+            try {
+                // Ottiene il link diretto al JSON
+                const linkData = await apiCall("getTemporaryLink", { path: jsonPath });
+                // Scarica e analizza il JSON direttamente nel browser
+                const response = await fetch(linkData.link);
+                const meta = await response.json();
+
+                const panel = document.getElementById('metadata-panel');
+                const grid = document.getElementById('metadata-grid');
+                grid.innerHTML = ''; // Svuota dati vecchi
+                
+                // Costruiamo i blocchi informativi dinamicamente.
+                // Modifica le chiavi in base a come sono salvate realmente nel tuo JSON (es. meta.operatore, meta.cantiere)
+                const items = [
+                    { icon: 'fa-hard-hat', label: 'Operatore', value: meta.operatore || meta.operator || 'Non specificato' },
+                    { icon: 'fa-building', label: 'Cantiere', value: meta.cantiere || meta.site || 'Sconosciuto' },
+                    { icon: 'fa-bolt', label: 'Potenza / Note', value: meta.potenza || meta.power || '-' },
+                    { icon: 'fa-images', label: 'Foto Trovate', value: photoCount }
+                ];
+
+                items.forEach(item => {
+                    grid.innerHTML += `
+                        <div class="bg-white/10 p-4 rounded-xl border border-white/20 backdrop-blur-sm">
+                            <p class="text-blue-200 text-xs font-semibold uppercase mb-1 flex items-center">
+                                <i class="fas ${item.icon} w-4"></i> ${item.label}
+                            </p>
+                            <p class="text-lg font-bold truncate" title="${item.value}">${item.value}</p>
+                        </div>
+                    `;
+                });
+
+                panel.classList.remove('hidden');
+            } catch (error) {
+                console.warn("Impossibile leggere il file JSON dei metadati.", error);
+            }
+        }
+
+        // 2. Conta i file in una sottocartella senza aprire la pagina
+        async function fetchFolderCount(folderPath, elementId) {
+            try {
+                const data = await apiCall("listFolder", { path: folderPath });
+                const count = data.entries.filter(e => e['.tag'] === 'file').length;
+                const badge = document.getElementById(elementId);
+                if(badge) badge.innerHTML = `<i class="fas fa-file-image mr-1"></i>${count}`;
+            } catch (e) {
+                const badge = document.getElementById(elementId);
+                if(badge) badge.innerHTML = "?";
+            }
+        }
+
+        // 3. Scarica il link dell'immagine per mostrarla come anteprima
+        async function fetchImagePreview(filePath, imgId) {
+            try {
+                // Usiamo il TemporaryLink come src per l'immagine. 
+                // NOTA: Se il worker avesse un'azione "getThumbnail", sarebbe ancora più veloce!
+                const data = await apiCall("getTemporaryLink", { path: filePath });
+                const imgEl = document.getElementById(imgId);
+                const containerEl = document.getElementById('container-' + imgId);
+                
+                if (imgEl && containerEl) {
+                    imgEl.src = data.link;
+                    imgEl.onload = () => {
+                        imgEl.classList.remove('hidden');
+                        containerEl.classList.remove('skeleton'); // Rimuove l'animazione di caricamento
+                    };
+                }
+            } catch (error) {
+                console.error("Errore caricamento anteprima:", error);
+                const containerEl = document.getElementById('container-' + imgId);
+                if (containerEl) {
+                    containerEl.classList.remove('skeleton');
+                    containerEl.innerHTML = '<i class="fas fa-image-slash text-gray-300 text-3xl"></i>';
+                }
+            }
+        }
+
+        // --- DOWNLOAD E NAVIGAZIONE ---
         async function downloadFile(path, filename) {
             try {
-                // Sostituisce dbx.filesGetTemporaryLink()
                 const data = await apiCall("getTemporaryLink", { path: path });
                 const a = document.createElement('a');
                 a.href = data.link;
@@ -182,8 +357,7 @@
                 a.click();
                 document.body.removeChild(a);
             } catch (error) {
-                alert("Errore durante la generazione del link.");
-                console.error(error);
+                alert("Errore durante la generazione del link di download.");
             }
         }
 
@@ -191,21 +365,21 @@
             const breadcrumbs = document.getElementById('breadcrumbs');
             
             if (path === "" || path === "/") {
-                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:underline flex items-center"><i class="fas fa-home mr-1"></i> Archivio</button>`;
+                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:text-blue-800 flex items-center"><i class="fas fa-home mr-2 text-lg"></i> Archivio Principale</button>`;
                 return;
             }
 
             const parts = path.split('/').filter(p => p !== '');
-            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="hover:underline text-gray-500 flex items-center"><i class="fas fa-home mr-1"></i> Archivio</button>`;
+            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="text-gray-500 hover:text-blue-600 transition flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
             
             let currentBuildPath = "";
             parts.forEach((part, index) => {
                 currentBuildPath += '/' + part;
-                html += ` <i class="fas fa-chevron-right text-xs text-gray-400 mx-2"></i> `;
+                html += ` <i class="fas fa-chevron-right text-[10px] text-gray-400 mx-2"></i> `;
                 if (index === parts.length - 1) {
-                    html += `<span class="font-bold text-blue-700">${part}</span>`;
+                    html += `<span class="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">${part}</span>`;
                 } else {
-                    html += `<button onclick="loadFolder('${currentBuildPath}')" class="hover:underline text-gray-600">${part}</button>`;
+                    html += `<button onclick="loadFolder('${currentBuildPath}')" class="text-gray-600 hover:text-blue-600 transition">${part}</button>`;
                 }
             });
             breadcrumbs.innerHTML = html;
