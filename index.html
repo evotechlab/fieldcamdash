@@ -60,7 +60,7 @@
                 <i class="fas fa-chart-line absolute -right-10 -bottom-10 text-9xl text-white opacity-10"></i>
                 <div class="flex items-center justify-between border-b border-blue-400/30 pb-4 mb-4 relative z-10">
                     <h2 class="text-2xl font-bold flex items-center"><i class="fas fa-clipboard-check text-green-400 mr-3"></i> Dashboard Cantiere</h2>
-                    <span class="bg-blue-900/50 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border border-blue-400/30">Dati Rilevati</span>
+                    <span class="bg-blue-900/50 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border border-blue-400/30">Riepilogo Dati</span>
                 </div>
                 <div id="metadata-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
                     </div>
@@ -68,16 +68,16 @@
 
             <div id="loading" class="text-center py-20 hidden">
                 <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
-                <p class="text-gray-500 font-medium">Lettura directory...</p>
+                <p class="text-gray-500 font-medium mt-2">Lettura archivio in corso...</p>
             </div>
 
             <div id="folders-section" class="mb-10 hidden">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><i class="fas fa-folder-tree text-blue-500 mr-2"></i> Categorie / Aree</h3>
+                <h3 id="folders-title" class="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"></h3>
                 <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
             </div>
 
             <div id="photos-section" class="hidden">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><i class="fas fa-images text-blue-500 mr-2"></i> Fotografie in questa cartella</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><i class="fas fa-images text-blue-500 mr-2"></i> Fotografie Area</h3>
                 <div id="photos-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
             </div>
             
@@ -96,8 +96,9 @@
         const ROOT_PATH = ""; 
         let accessToken = localStorage.getItem("db_admin_access");
         
-        // Variabile globale per sommare i file del cantiere
+        // Contatore globale per la dashboard del cantiere
         let currentSiteTotalPhotos = 0;
+        let foldersLoadingCount = 0;
 
         async function apiCall(action, payload = {}) {
             const res = await fetch(WORKER_URL, {
@@ -164,7 +165,11 @@
             const photosSec = document.getElementById('photos-section');
             const emptyState = document.getElementById('empty-state');
             const metadataPanel = document.getElementById('metadata-panel');
+            const foldersTitle = document.getElementById('folders-title');
             
+            // Calcolo livello di profondità
+            const depth = path.split('/').filter(p => p !== '').length;
+
             foldersGrid.innerHTML = '';
             photosGrid.innerHTML = '';
             foldersSec.classList.add('hidden');
@@ -173,7 +178,6 @@
             metadataPanel.classList.add('hidden');
             loading.classList.remove('hidden');
             
-            currentSiteTotalPhotos = 0; // Resetta il counter globale del cantiere
             renderBreadcrumbs(path);
 
             try {
@@ -181,10 +185,7 @@
                 const entries = data.entries || [];
 
                 const folders = entries.filter(e => e['.tag'] === 'folder');
-                const files = entries.filter(e => e['.tag'] === 'file');
-                
-                const photos = files.filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f.name));
-                const jsonFiles = files.filter(f => f.name.endsWith('.json'));
+                const photos = entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name));
 
                 loading.classList.add('hidden');
 
@@ -193,68 +194,104 @@
                     return;
                 }
 
-                // Inizia il conteggio globale con le foto presenti nella radice (se ci sono)
-                currentSiteTotalPhotos += photos.length;
+                // ==========================================
+                // LOGICA BASATA SULLA PROFONDITÀ (DEPTH)
+                // ==========================================
 
-                // 1. GESTIONE DASHBOARD CANTIERE (se trova il JSON nella root del cantiere)
-                if (jsonFiles.length > 0) {
-                    loadMetadataCard(jsonFiles[0].path_display);
-                }
+                if (depth === 0) {
+                    // LIVELLO 0: ELENCO CANTIERI
+                    if (folders.length > 0) {
+                        foldersSec.classList.remove('hidden');
+                        foldersTitle.innerHTML = `<i class="fas fa-industry text-blue-600 mr-2"></i> Cantieri Attivi`;
+                        folders.forEach(folder => {
+                            const card = document.createElement('div');
+                            card.className = "bg-white border border-gray-200 rounded-xl p-5 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all flex items-center group";
+                            card.onclick = () => loadFolder(folder.path_display);
+                            card.innerHTML = `
+                                <div class="bg-blue-100 text-blue-600 w-12 h-12 rounded-lg flex items-center justify-center mr-4 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                    <i class="fas fa-building text-2xl"></i>
+                                </div>
+                                <span class="font-bold text-gray-800 truncate text-lg" title="${folder.name}">${folder.name}</span>
+                            `;
+                            foldersGrid.appendChild(card);
+                        });
+                    }
 
-                // 2. RENDER SOTTOCARTELLE E CALCOLO NUMERO FOTO
-                if (folders.length > 0) {
-                    foldersSec.classList.remove('hidden');
+                } else if (depth === 1) {
+                    // LIVELLO 1: CANTIERE -> MOSTRA DASHBOARD E AREE
+                    currentSiteTotalPhotos = 0;
+                    foldersLoadingCount = folders.length;
                     
-                    let folderPromises = folders.map(folder => {
-                        const safeId = "fcount-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
-                        const card = document.createElement('div');
-                        card.className = "bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all flex items-center justify-between group";
-                        card.onclick = () => loadFolder(folder.path_display);
-                        card.innerHTML = `
-                            <div class="flex items-center overflow-hidden">
-                                <div class="bg-blue-50 text-blue-600 w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-folder text-xl"></i>
-                                </div>
-                                <span class="font-semibold text-gray-700 truncate" title="${folder.name}">${folder.name}</span>
-                            </div>
-                            <span id="${safeId}" class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md ml-2 border border-gray-200"><i class="fas fa-spinner fa-spin"></i></span>
-                        `;
-                        foldersGrid.appendChild(card);
+                    // Mostra la dashboard (inizialmente in stato di caricamento)
+                    metadataPanel.classList.remove('hidden');
+                    document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-blue-300"></i><p class="text-sm mt-2 text-blue-200">Ricerca metadati nelle aree...</p></div>';
+                    
+                    if (folders.length > 0) {
+                        // 1. Cerca il file JSON "sbirciando" nelle sottocartelle
+                        findMetadataInSubfolders(folders);
 
-                        return fetchFolderCount(folder.path_display, safeId);
-                    });
-
-                    // Spegne il "loader" del totale foto nel pannello cantiere quando tutte le sottocartelle sono state ispezionate
-                    Promise.all(folderPromises).then(() => {
-                        const spinner = document.getElementById('meta-spinner');
-                        if(spinner) spinner.style.display = 'none';
-                    });
-                }
-
-                // 3. RENDER FOTO (Lazy Load Anteprime)
-                if (photos.length > 0) {
-                    photosSec.classList.remove('hidden');
-                    photos.forEach(photo => {
-                        const safeId = "img-" + photo.id.replace(/[^a-zA-Z0-9]/g, '');
-                        const card = document.createElement('div');
-                        card.className = "bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col";
+                        // 2. Renderizza le Aree
+                        foldersSec.classList.remove('hidden');
+                        foldersTitle.innerHTML = `<i class="fas fa-layer-group text-blue-500 mr-2"></i> Aree / Stati di Lavoro`;
                         
-                        card.innerHTML = `
-                            <div class="h-40 relative overflow-hidden bg-gray-100 flex items-center justify-center skeleton" id="container-${safeId}">
-                                <img id="${safeId}" src="" class="w-full h-full object-cover hidden transition-transform duration-700 group-hover:scale-110" alt="${photo.name}">
-                                <div class="absolute inset-0 bg-gray-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                    <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="bg-white text-gray-900 font-bold py-2 px-4 rounded-full shadow-lg hover:bg-blue-50 transform translate-y-4 group-hover:translate-y-0 transition-all">
-                                        <i class="fas fa-download mr-1"></i>
-                                    </button>
+                        folders.forEach(folder => {
+                            const safeId = "fcount-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
+                            const card = document.createElement('div');
+                            card.className = "bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all flex items-center justify-between group";
+                            card.onclick = () => loadFolder(folder.path_display);
+                            card.innerHTML = `
+                                <div class="flex items-center overflow-hidden">
+                                    <div class="bg-yellow-50 text-yellow-500 w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-110 transition-transform">
+                                        <i class="fas fa-folder text-xl"></i>
+                                    </div>
+                                    <span class="font-semibold text-gray-700 truncate" title="${folder.name}">${folder.name}</span>
                                 </div>
-                            </div>
-                            <div class="p-3 bg-white border-t border-gray-50 flex flex-col">
-                                <p class="text-xs font-medium text-gray-600 truncate" title="${photo.name}">${photo.name}</p>
-                            </div>
-                        `;
-                        photosGrid.appendChild(card);
-                        fetchImagePreview(photo.path_display, safeId);
-                    });
+                                <span id="${safeId}" class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md ml-2 border border-gray-200"><i class="fas fa-spinner fa-spin"></i></span>
+                            `;
+                            foldersGrid.appendChild(card);
+
+                            // Conta i file dell'area e aggiorna la Dashboard Cantiere in tempo reale
+                            fetchFolderCount(folder.path_display, safeId);
+                        });
+                    }
+
+                } else {
+                    // LIVELLO 2+: ULTIMO NODO -> MOSTRA SOLO FOTO (O EVENTUALI SOTTOCARTELLE)
+                    if (folders.length > 0) {
+                        foldersSec.classList.remove('hidden');
+                        foldersTitle.innerHTML = `<i class="fas fa-folder-open text-yellow-500 mr-2"></i> Sottocartelle`;
+                        folders.forEach(folder => {
+                            const card = document.createElement('div');
+                            card.className = "bg-white border border-gray-200 rounded-lg p-3 cursor-pointer hover:bg-gray-50 flex items-center";
+                            card.onclick = () => loadFolder(folder.path_display);
+                            card.innerHTML = `<i class="fas fa-folder text-yellow-400 mr-3"></i><span class="truncate text-sm font-medium">${folder.name}</span>`;
+                            foldersGrid.appendChild(card);
+                        });
+                    }
+
+                    if (photos.length > 0) {
+                        photosSec.classList.remove('hidden');
+                        photos.forEach(photo => {
+                            const safeId = "img-" + photo.id.replace(/[^a-zA-Z0-9]/g, '');
+                            const card = document.createElement('div');
+                            card.className = "bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col";
+                            card.innerHTML = `
+                                <div class="h-40 relative overflow-hidden bg-gray-100 flex items-center justify-center skeleton" id="container-${safeId}">
+                                    <img id="${safeId}" src="" class="w-full h-full object-cover hidden transition-transform duration-700 group-hover:scale-110" alt="${photo.name}">
+                                    <div class="absolute inset-0 bg-gray-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="bg-white text-gray-900 font-bold py-2 px-4 rounded-full shadow-lg hover:bg-blue-50 transform translate-y-4 group-hover:translate-y-0 transition-all">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="p-3 bg-white border-t border-gray-50">
+                                    <p class="text-xs font-medium text-gray-600 truncate" title="${photo.name}">${photo.name}</p>
+                                </div>
+                            `;
+                            photosGrid.appendChild(card);
+                            fetchImagePreview(photo.path_display, safeId);
+                        });
+                    }
                 }
 
             } catch (error) {
@@ -264,13 +301,28 @@
             }
         }
 
-        async function loadMetadataCard(jsonPath) {
+        // Cerca il file JSON ispezionando asincronamente le sottocartelle
+        async function findMetadataInSubfolders(folders) {
+            for (let folder of folders) {
+                try {
+                    const data = await apiCall("listFolder", { path: folder.path_display });
+                    const jsonFile = data.entries.find(e => e['.tag'] === 'file' && e.name.endsWith('.json'));
+                    if (jsonFile) {
+                        await buildDashboardFromJSON(jsonFile.path_display);
+                        return; // Trovato il file, fermiamo la ricerca!
+                    }
+                } catch(e) { /* Ignora e passa alla prossima */ }
+            }
+            // Se finisce il loop senza trovare nulla
+            document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full text-blue-200">Nessun file metadati rilevato per questo cantiere.</div>';
+        }
+
+        async function buildDashboardFromJSON(jsonPath) {
             try {
                 const linkData = await apiCall("getTemporaryLink", { path: jsonPath });
                 const response = await fetch(linkData.link);
                 const meta = await response.json();
 
-                const panel = document.getElementById('metadata-panel');
                 const grid = document.getElementById('metadata-grid');
                 grid.innerHTML = ''; 
                 
@@ -278,7 +330,7 @@
                     { icon: 'fa-hard-hat text-yellow-400', label: 'Operatore', value: meta.operatore || meta.operator || 'N/D' },
                     { icon: 'fa-map-marker-alt text-red-400', label: 'Cantiere', value: meta.cantiere || meta.site || 'N/D' },
                     { icon: 'fa-bolt text-yellow-300', label: 'Potenza / Note', value: meta.potenza || meta.power || '-' },
-                    { icon: 'fa-camera text-blue-300', label: 'Archivio Totale', value: `<span id="meta-total-photos">${currentSiteTotalPhotos}</span> <i class="fas fa-circle-notch fa-spin text-[10px] ml-1 opacity-70" id="meta-spinner"></i>` }
+                    { icon: 'fa-camera text-blue-300', label: 'Archivio Totale', value: `<span id="meta-total-photos">${currentSiteTotalPhotos}</span> Foto <i class="fas fa-circle-notch fa-spin text-[10px] ml-1 opacity-70" id="meta-spinner"></i>` }
                 ];
 
                 items.forEach(item => {
@@ -291,10 +343,10 @@
                         </div>
                     `;
                 });
-
-                panel.classList.remove('hidden');
+                
+                checkHideSpinner();
             } catch (error) {
-                console.warn("Impossibile generare la dashboard dal file JSON.");
+                console.warn("Errore parsing JSON.");
             }
         }
 
@@ -304,16 +356,26 @@
                 const count = data.entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name)).length;
                 
                 const badge = document.getElementById(elementId);
-                if(badge) badge.innerHTML = `${count} file`;
+                if(badge) badge.innerHTML = `${count} foto`;
 
-                // Aggiorna in tempo reale il numero totale nella dashboard madre!
+                // Aggiorna totale globale
                 currentSiteTotalPhotos += count;
                 const totalSpan = document.getElementById('meta-total-photos');
-                if (totalSpan) totalSpan.innerText = currentSiteTotalPhotos + " Foto";
+                if (totalSpan) totalSpan.innerText = currentSiteTotalPhotos;
 
             } catch (e) {
                 const badge = document.getElementById(elementId);
-                if(badge) badge.innerHTML = "?";
+                if(badge) badge.innerHTML = "-";
+            } finally {
+                foldersLoadingCount--;
+                checkHideSpinner();
+            }
+        }
+
+        function checkHideSpinner() {
+            if (foldersLoadingCount <= 0) {
+                const spinner = document.getElementById('meta-spinner');
+                if(spinner) spinner.style.display = 'none';
             }
         }
 
@@ -350,7 +412,7 @@
                 a.click();
                 document.body.removeChild(a);
             } catch (error) {
-                alert("Errore durante la generazione del link di download.");
+                alert("Errore durante la generazione del link.");
             }
         }
 
@@ -358,12 +420,12 @@
             const breadcrumbs = document.getElementById('breadcrumbs');
             
             if (path === "" || path === "/") {
-                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:text-blue-800 flex items-center"><i class="fas fa-home mr-2 text-lg"></i> Archivio Principale</button>`;
+                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:text-blue-800 flex items-center"><i class="fas fa-home mr-2 text-lg"></i> Root Cantieri</button>`;
                 return;
             }
 
             const parts = path.split('/').filter(p => p !== '');
-            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="text-gray-500 hover:text-blue-600 transition flex items-center"><i class="fas fa-home mr-1"></i> Home</button>`;
+            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="text-gray-500 hover:text-blue-600 transition flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
             
             let currentBuildPath = "";
             parts.forEach((part, index) => {
