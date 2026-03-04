@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Admin - FieldCam</title>
+    <title>FieldCam Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -26,7 +26,7 @@
                 <i class="fab fa-dropbox text-5xl text-blue-600"></i>
             </div>
             <h2 class="text-2xl font-bold text-slate-800 mb-2">FieldCam Admin</h2>
-            <p class="text-sm text-slate-500 mb-8">Connetti il tuo account per accedere all'archivio dei cantieri.</p>
+            <p class="text-sm text-slate-500 mb-8">Connetti il tuo account per accedere all'archivio.</p>
             <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-4 rounded-xl hover:bg-blue-700 transition shadow-lg flex justify-center items-center">
                 <i class="fas fa-shield-alt mr-2"></i> Accesso Sicuro
             </button>
@@ -40,13 +40,13 @@
                     <div class="bg-blue-600 text-white p-2 rounded-lg mr-3 shadow-md">
                         <i class="fas fa-solar-panel text-xl"></i>
                     </div>
-                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">FieldCam Dashboard</h1>
+                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">FieldCam</h1>
                 </div>
                 <div class="flex items-center space-x-4">
                     <span id="status" class="text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full font-medium flex items-center shadow-sm">
                         <i class="fas fa-circle text-[10px] mr-2 text-emerald-500"></i> Online
                     </span>
-                    <button onclick="logout()" class="text-slate-500 hover:text-red-600 transition p-2 rounded-lg hover:bg-red-50" title="Disconnetti">
+                    <button onclick="logout()" class="text-slate-500 hover:text-red-600 transition p-2 rounded-lg hover:bg-red-50">
                         <i class="fas fa-sign-out-alt text-lg"></i>
                     </button>
                 </div>
@@ -56,7 +56,32 @@
         <main class="container mx-auto px-4 py-8 flex-1">
             <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center space-x-2 text-sm text-slate-600 mb-8" id="breadcrumbs"></div>
 
-            <div id="metadata-panel" class="hidden bg-gradient-to-br from-blue-700 to-indigo-900 rounded-2xl p-6 shadow-xl mb-10 text-white relative overflow-hidden border border-blue-500/30">
+            <div id="global-dashboard" class="hidden bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-10">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                    <h2 class="text-xl font-bold flex items-center text-slate-800"><i class="fas fa-globe text-blue-500 mr-3"></i> Overview Globale Cantieri</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-5 flex items-center">
+                        <div class="bg-blue-500 text-white w-14 h-14 rounded-full flex items-center justify-center text-2xl mr-4 shadow-sm"><i class="fas fa-industry"></i></div>
+                        <div>
+                            <p class="text-blue-600 text-sm font-bold uppercase tracking-wider">Cantieri Attivi</p>
+                            <p class="text-3xl font-black text-slate-800" id="global-sites-count">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5 flex items-center">
+                        <div class="bg-emerald-500 text-white w-14 h-14 rounded-full flex items-center justify-center text-2xl mr-4 shadow-sm"><i class="fas fa-camera"></i></div>
+                        <div>
+                            <p class="text-emerald-700 text-sm font-bold uppercase tracking-wider">Foto Totali (Stima)</p>
+                            <p class="text-3xl font-black text-slate-800 flex items-center">
+                                <span id="global-photos-count">0</span>
+                                <i id="global-spinner" class="fas fa-circle-notch fa-spin text-sm ml-3 text-emerald-400"></i>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="local-dashboard" class="hidden bg-gradient-to-br from-blue-700 to-indigo-900 rounded-2xl p-6 shadow-xl mb-10 text-white relative overflow-hidden border border-blue-500/30">
                 <i class="fas fa-chart-pie absolute -right-12 -bottom-12 text-9xl text-white opacity-5"></i>
                 <div class="flex items-center justify-between border-b border-blue-400/30 pb-4 mb-5 relative z-10">
                     <h2 class="text-2xl font-bold flex items-center"><i class="fas fa-clipboard-check text-blue-300 mr-3"></i> Dashboard Cantiere</h2>
@@ -65,30 +90,28 @@
                 
                 <div id="metadata-grid" class="grid grid-cols-2 md:grid-cols-5 gap-4 relative z-10">
                     <div class="col-span-full flex items-center justify-center py-6 text-blue-200">
-                        <i class="fas fa-circle-notch fa-spin text-3xl mr-3"></i> Analisi dati del cantiere in corso...
+                        <i class="fas fa-circle-notch fa-spin text-3xl mr-3"></i> Lettura metadati cantiere...
                     </div>
                 </div>
             </div>
 
             <div id="loading" class="text-center py-20 hidden">
-                <div class="relative w-20 h-20 mx-auto mb-4">
-                    <div class="absolute inset-0 border-4 border-blue-100 rounded-full"></div>
+                <div class="relative w-16 h-16 mx-auto mb-4">
+                    <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
                     <div class="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
                 </div>
-                <p class="text-slate-500 font-medium tracking-wide">Lettura archivio in corso...</p>
             </div>
 
             <div id="folders-section" class="mb-10 hidden">
                 <div class="flex items-center justify-between mb-6 border-b border-slate-200 pb-2">
                     <h3 id="folders-title" class="text-xl font-bold text-slate-800 flex items-center"></h3>
-                    <span id="folders-count" class="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full"></span>
                 </div>
                 <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
             </div>
 
             <div id="photos-section" class="hidden">
                 <h3 class="text-xl font-bold text-slate-800 mb-6 flex items-center border-b border-slate-200 pb-2">
-                    <i class="fas fa-images text-blue-500 mr-2"></i> Fotografie Acquisite
+                    <i class="fas fa-images text-blue-500 mr-2"></i> Fotografie
                 </h3>
                 <div id="photos-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
             </div>
@@ -97,25 +120,22 @@
                 <div class="bg-slate-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-folder-open text-4xl text-slate-400"></i>
                 </div>
-                <h3 class="text-lg font-bold text-slate-700">Nessun Elemento</h3>
-                <p class="text-slate-500 mt-1">Questa directory è attualmente vuota.</p>
+                <h3 class="text-lg font-bold text-slate-700">Cartella Vuota</h3>
             </div>
         </main>
     </div>
 
     <script>
         // ==========================================
-        // CONFIGURAZIONE PROXY
+        // CORE CONFIG & STATE
         // ==========================================
         const WORKER_URL = "https://dfd89ks.sviluppo-49a.workers.dev"; 
         const ROOT_PATH = ""; 
         let accessToken = localStorage.getItem("db_admin_access");
         
-        // Stato per la Dashboard del Cantiere
-        let currentSiteTotalPhotos = 0;
-        let isDashboardDataLoaded = false; 
+        let currentNavPath = ""; // Variabile cruciale per bloccare i caricamenti in background se l'utente cambia pagina
+        let runningRecursiveCount = 0; // Contatore live per dashboard
 
-        // Core API Caller
         async function apiCall(action, payload = {}) {
             const res = await fetch(WORKER_URL, {
                 method: "POST",
@@ -134,7 +154,7 @@
             return res.json();
         }
 
-        // Boot
+        // --- INIZIALIZZAZIONE ---
         document.addEventListener('DOMContentLoaded', () => {
             if (window.location.hash.includes('access_token')) {
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -153,9 +173,7 @@
             try {
                 const data = await apiCall("getAuthUrl");
                 if (data.success) window.location.href = data.url;
-            } catch (error) {
-                alert("Errore proxy di sicurezza.");
-            }
+            } catch (error) { alert("Errore proxy di sicurezza."); }
         }
 
         function logout() {
@@ -174,29 +192,34 @@
             }
         }
 
-        // --- MOTORE PRINCIPALE DI NAVIGAZIONE ---
+        // ==========================================
+        // MOTORE DI NAVIGAZIONE E LIVELLI
+        // ==========================================
         async function loadFolder(path) {
+            // Aggiorna il percorso corrente (ferma i loop ricorsivi vecchi)
+            currentNavPath = path; 
+            
+            // Calcolo Profondità:
+            // "" -> Array Vuoto -> Depth 0
+            // "/FieldCam" -> ["FieldCam"] -> Depth 1 (Globale)
+            // "/FieldCam/Roma_Sud" -> ["FieldCam", "Roma_Sud"] -> Depth 2 (Locale)
+            // "/FieldCam/Roma_Sud/Inverter" -> Depth 3 (Contenuto)
+            const parts = path.split('/').filter(p => p !== '');
+            const depth = parts.length;
+
             const loading = document.getElementById('loading');
             const foldersGrid = document.getElementById('folders-grid');
             const photosGrid = document.getElementById('photos-grid');
-            const foldersSec = document.getElementById('folders-section');
-            const photosSec = document.getElementById('photos-section');
-            const emptyState = document.getElementById('empty-state');
-            const metadataPanel = document.getElementById('metadata-panel');
-            const foldersTitle = document.getElementById('folders-title');
-            const foldersCount = document.getElementById('folders-count');
             
-            // 1. Calcolo esatto della profondità
-            // ROOT = 0. Esempio: "/Roma_Sud" = 1. Esempio: "/Roma_Sud/Inverter" = 2.
-            const depth = path === "" || path === "/" ? 0 : path.split('/').filter(p => p !== '').length;
-
-            // Reset UI
+            // Nascondi tutte le sezioni
+            document.getElementById('global-dashboard').classList.add('hidden');
+            document.getElementById('local-dashboard').classList.add('hidden');
+            document.getElementById('folders-section').classList.add('hidden');
+            document.getElementById('photos-section').classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+            
             foldersGrid.innerHTML = '';
             photosGrid.innerHTML = '';
-            foldersSec.classList.add('hidden');
-            photosSec.classList.add('hidden');
-            emptyState.classList.add('hidden');
-            metadataPanel.classList.add('hidden');
             loading.classList.remove('hidden');
             
             renderBreadcrumbs(path);
@@ -206,122 +229,105 @@
                 const entries = data.entries || [];
 
                 const folders = entries.filter(e => e['.tag'] === 'folder');
-                const files = entries.filter(e => e['.tag'] === 'file');
-                const photos = files.filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f.name));
+                const photos = entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name));
+                const jsonFiles = entries.filter(e => e['.tag'] === 'file' && e.name.endsWith('.json'));
 
                 loading.classList.add('hidden');
 
                 if (entries.length === 0) {
-                    emptyState.classList.remove('hidden');
+                    document.getElementById('empty-state').classList.remove('hidden');
                     return;
                 }
 
-                // ==========================================
-                // GESTIONE DEI 3 LIVELLI DELL'ALBERO
-                // ==========================================
-
+                // ------------------------------------------
+                // LIVELLO 0: ROOT
+                // ------------------------------------------
                 if (depth === 0) {
-                    // --- LIVELLO 0: ELENCO GLOBALE CANTIERI ---
                     if (folders.length > 0) {
-                        foldersSec.classList.remove('hidden');
-                        foldersTitle.innerHTML = `<i class="fas fa-industry text-blue-600 mr-3"></i> Progetti / Cantieri`;
-                        foldersCount.innerText = `${folders.length} Attivi`;
-
+                        document.getElementById('folders-section').classList.remove('hidden');
+                        document.getElementById('folders-title').innerHTML = `<i class="fas fa-hdd text-slate-400 mr-2"></i> Archivio Principale`;
                         folders.forEach(folder => {
-                            const card = document.createElement('div');
-                            card.className = "bg-white border border-slate-200 rounded-2xl p-6 cursor-pointer hover:border-blue-500 hover:shadow-xl transition-all duration-300 flex items-center group relative overflow-hidden";
-                            card.onclick = () => loadFolder(folder.path_display);
-                            card.innerHTML = `
-                                <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></div>
-                                <div class="bg-slate-50 text-blue-600 w-14 h-14 rounded-xl flex items-center justify-center mr-4 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-sm border border-slate-100 group-hover:border-transparent">
-                                    <i class="fas fa-building text-2xl"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-bold text-slate-800 text-lg truncate" title="${folder.name}">${folder.name}</h4>
-                                    <p class="text-xs text-slate-500 mt-1 flex items-center"><i class="fas fa-folder-open mr-1"></i> Apri cantiere</p>
-                                </div>
-                            `;
+                            const card = createBasicFolderCard(folder);
                             foldersGrid.appendChild(card);
                         });
                     }
-
-                } else if (depth === 1) {
-                    // --- LIVELLO 1: DASHBOARD DEL CANTIERE & AREE ---
-                    metadataPanel.classList.remove('hidden');
-                    currentSiteTotalPhotos = 0;
-                    isDashboardDataLoaded = false;
+                } 
+                
+                // ------------------------------------------
+                // LIVELLO 1: DASHBOARD GLOBALE
+                // ------------------------------------------
+                else if (depth === 1) {
+                    document.getElementById('global-dashboard').classList.remove('hidden');
+                    document.getElementById('global-sites-count').innerText = folders.length;
                     
-                    // Mostra scheletro loading per i dati
-                    document.getElementById('metadata-grid').innerHTML = `
-                        <div class="col-span-full flex flex-col items-center justify-center py-8 text-blue-200">
-                            <i class="fas fa-satellite-dish fa-spin text-4xl mb-3 opacity-80"></i>
-                            <p class="animate-pulse">Sincronizzazione dati del cantiere in corso...</p>
-                        </div>
-                    `;
+                    // Reset e avvio del contatore globale ricorsivo
+                    runningRecursiveCount = 0;
+                    document.getElementById('global-photos-count').innerText = "0";
+                    document.getElementById('global-spinner').style.display = 'inline-block';
+                    startRecursiveCount(path, 'global-photos-count', currentNavPath).then(() => {
+                        if (currentNavPath === path) document.getElementById('global-spinner').style.display = 'none';
+                    });
 
                     if (folders.length > 0) {
-                        foldersSec.classList.remove('hidden');
-                        foldersTitle.innerHTML = `<i class="fas fa-layer-group text-blue-500 mr-3"></i> Aree Lavoro`;
-                        foldersCount.innerText = `${folders.length} Aree`;
-                        
-                        // Avvia parallelamente la conta delle foto e la ricerca del file JSON
+                        document.getElementById('folders-section').classList.remove('hidden');
+                        document.getElementById('folders-title').innerHTML = `<i class="fas fa-industry text-blue-600 mr-2"></i> Elenco Cantieri`;
                         folders.forEach(folder => {
-                            const safeId = "fcount-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
-                            const card = document.createElement('div');
-                            card.className = "bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between group";
-                            card.onclick = () => loadFolder(folder.path_display);
-                            card.innerHTML = `
-                                <div class="flex items-center overflow-hidden">
-                                    <div class="bg-yellow-100 text-yellow-600 w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-110 transition-transform">
-                                        <i class="fas fa-folder text-lg"></i>
-                                    </div>
-                                    <span class="font-bold text-slate-700 truncate" title="${folder.name}">${folder.name}</span>
-                                </div>
-                                <span id="${safeId}" class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md ml-2 border border-slate-200 shadow-sm min-w-[3rem] text-center">
-                                    <i class="fas fa-ellipsis-h animate-pulse"></i>
-                                </span>
-                            `;
+                            const safeId = "badge-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
+                            const card = createSiteFolderCard(folder, safeId);
                             foldersGrid.appendChild(card);
-
-                            // La funzione fetchAreaStats conta le foto e, se trova un json, lo usa per la dashboard
-                            fetchAreaStats(folder.path_display, safeId);
+                            // Lancia calcolo badge ricorsivo per il cantiere
+                            calculateBadgeRecursive(folder.path_display, safeId, currentNavPath);
                         });
                     }
-
-                } else {
-                    // --- LIVELLO 2+: FOTO DELL'AREA ---
+                } 
+                
+                // ------------------------------------------
+                // LIVELLO 2: DASHBOARD LOCALE (CANTIERE)
+                // ------------------------------------------
+                else if (depth === 2) {
+                    document.getElementById('local-dashboard').classList.remove('hidden');
+                    document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full py-6 text-center text-blue-200"><i class="fas fa-spinner fa-spin text-2xl mr-2"></i> Analisi Cantiere...</div>';
+                    
+                    // Reset e avvio del contatore locale ricorsivo per la dashboard cantiere
+                    runningRecursiveCount = 0;
+                    
+                    // 1. Cerca metadati nelle sottocartelle (se non ci sono nella root del cantiere)
+                    findAndRenderMetadata(folders, jsonFiles);
+                    
+                    // 2. Renderizza le Aree
                     if (folders.length > 0) {
-                        foldersSec.classList.remove('hidden');
-                        foldersTitle.innerHTML = `<i class="fas fa-folder-open text-yellow-500 mr-3"></i> Sottocartelle`;
-                        foldersCount.innerText = `${folders.length}`;
+                        document.getElementById('folders-section').classList.remove('hidden');
+                        document.getElementById('folders-title').innerHTML = `<i class="fas fa-layer-group text-blue-500 mr-2"></i> Aree Lavoro`;
                         folders.forEach(folder => {
-                            const card = document.createElement('div');
-                            card.className = "bg-white border border-slate-200 rounded-lg p-3 cursor-pointer hover:bg-slate-50 flex items-center";
-                            card.onclick = () => loadFolder(folder.path_display);
-                            card.innerHTML = `<i class="fas fa-folder text-yellow-400 mr-3"></i><span class="truncate text-sm font-medium text-slate-700">${folder.name}</span>`;
+                            const safeId = "badge-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
+                            const card = createAreaFolderCard(folder, safeId);
                             foldersGrid.appendChild(card);
+                            // Lancia calcolo badge ricorsivo per l'area
+                            calculateBadgeRecursive(folder.path_display, safeId, currentNavPath);
+                        });
+                    }
+                } 
+                
+                // ------------------------------------------
+                // LIVELLO 3+: FOTO E SOTTOCARTELLE
+                // ------------------------------------------
+                else {
+                    if (folders.length > 0) {
+                        document.getElementById('folders-section').classList.remove('hidden');
+                        document.getElementById('folders-title').innerHTML = `<i class="fas fa-folder-tree text-yellow-500 mr-2"></i> Sottocartelle`;
+                        folders.forEach(folder => {
+                            const safeId = "badge-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
+                            const card = createAreaFolderCard(folder, safeId);
+                            foldersGrid.appendChild(card);
+                            calculateBadgeRecursive(folder.path_display, safeId, currentNavPath);
                         });
                     }
 
                     if (photos.length > 0) {
-                        photosSec.classList.remove('hidden');
+                        document.getElementById('photos-section').classList.remove('hidden');
                         photos.forEach(photo => {
                             const safeId = "img-" + photo.id.replace(/[^a-zA-Z0-9]/g, '');
-                            const card = document.createElement('div');
-                            card.className = "bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col";
-                            card.innerHTML = `
-                                <div class="h-44 relative overflow-hidden bg-slate-100 flex items-center justify-center skeleton" id="container-${safeId}">
-                                    <img id="${safeId}" src="" class="w-full h-full object-cover hidden transition-transform duration-700 group-hover:scale-110" alt="${photo.name}">
-                                    <div class="absolute inset-0 bg-slate-900/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]">
-                                        <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="bg-white text-slate-900 font-bold py-2.5 px-5 rounded-full shadow-xl hover:bg-blue-50 transform translate-y-4 group-hover:translate-y-0 transition-all flex items-center">
-                                            <i class="fas fa-download mr-2"></i> Scarica
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="p-3 bg-white border-t border-slate-50">
-                                    <p class="text-xs font-semibold text-slate-600 truncate" title="${photo.name}">${photo.name}</p>
-                                </div>
-                            `;
+                            const card = createPhotoCard(photo, safeId);
                             photosGrid.appendChild(card);
                             fetchImagePreview(photo.path_display, safeId);
                         });
@@ -336,41 +342,105 @@
         }
 
         // ==========================================
-        // FUNZIONI ASINCRONE PER METADATI E CONTEGGI
+        // MOTORE DI CONTEGGIO RICORSIVO
         // ==========================================
 
-        async function fetchAreaStats(folderPath, badgeId) {
+        // Conta le foto in tutto l'albero e aggiorna un elemento testo in tempo reale
+        async function startRecursiveCount(folderPath, elementId, validNavPath) {
+            if (currentNavPath !== validNavPath) return; // L'utente ha cambiato pagina, interrompi!
+            
             try {
                 const data = await apiCall("listFolder", { path: folderPath });
+                if (currentNavPath !== validNavPath) return;
+
+                const entries = data.entries || [];
+                const photos = entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name));
                 
-                // 1. Conta le foto in questa area
-                const photosInArea = data.entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name)).length;
-                const badge = document.getElementById(badgeId);
-                if(badge) badge.innerHTML = `<i class="far fa-image mr-1 text-slate-400"></i>${photosInArea}`;
+                // Aggiorna variabile globale e UI
+                runningRecursiveCount += photos.length;
+                const el = document.getElementById(elementId);
+                if (el) el.innerText = runningRecursiveCount;
 
-                // Aggiorna il counter totale globale
-                currentSiteTotalPhotos += photosInArea;
-                const totalSpan = document.getElementById('meta-total-photos');
-                if (totalSpan) {
-                    totalSpan.innerText = currentSiteTotalPhotos;
+                // Esplora le sottocartelle
+                const folders = entries.filter(e => e['.tag'] === 'folder');
+                for (let f of folders) {
+                    await startRecursiveCount(f.path_display, elementId, validNavPath);
                 }
+            } catch (e) { /* Ignora errori di permessi su singole cartelle */ }
+        }
 
-                // 2. Se non abbiamo ancora caricato i dati della Dashboard Cantiere, cerchiamo un JSON qui
-                if (!isDashboardDataLoaded) {
-                    const jsonFile = data.entries.find(e => e['.tag'] === 'file' && e.name.endsWith('.json'));
-                    if (jsonFile) {
-                        isDashboardDataLoaded = true; // Blocca altre richieste JSON per questo cantiere
-                        await renderDashboardFromJson(jsonFile.path_display);
+        // Conta le foto per i "Badge" grigi delle cartelline, in modo isolato
+        async function calculateBadgeRecursive(folderPath, badgeId, validNavPath) {
+            let localTotal = 0;
+
+            async function recurse(p) {
+                if (currentNavPath !== validNavPath) return;
+                try {
+                    const data = await apiCall("listFolder", { path: p });
+                    if (currentNavPath !== validNavPath) return;
+
+                    const entries = data.entries || [];
+                    const photos = entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name));
+                    localTotal += photos.length;
+
+                    // Aggiorna il badge live durante la scansione
+                    const badge = document.getElementById(badgeId);
+                    if (badge) badge.innerHTML = `<i class="far fa-image mr-1"></i> ${localTotal}`;
+
+                    const folders = entries.filter(e => e['.tag'] === 'folder');
+                    for (let f of folders) {
+                        await recurse(f.path_display);
                     }
-                }
+                } catch(e) {}
+            }
 
-            } catch (e) {
+            await recurse(folderPath);
+            
+            // Fine conteggio: rimuove l'animazione pulsante se siamo ancora sulla stessa pagina
+            if (currentNavPath === validNavPath) {
                 const badge = document.getElementById(badgeId);
-                if(badge) badge.innerHTML = "-";
+                if (badge) {
+                    badge.innerHTML = `<i class="far fa-image mr-1 text-slate-400"></i> ${localTotal}`;
+                    badge.classList.remove('animate-pulse');
+                }
             }
         }
 
-        async function renderDashboardFromJson(jsonPath) {
+        // ==========================================
+        // GESTIONE METADATI (JSON)
+        // ==========================================
+        
+        async function findAndRenderMetadata(folders, rootJsonFiles) {
+            let foundJsonPath = null;
+            
+            // 1. Controlla prima se c'è un JSON nella radice del cantiere
+            if (rootJsonFiles && rootJsonFiles.length > 0) {
+                foundJsonPath = rootJsonFiles[0].path_display;
+            } 
+            // 2. Altrimenti sbircia velocemente nelle sottocartelle
+            else {
+                for (let folder of folders) {
+                    if (currentNavPath !== folder.path_display.split('/').slice(0,-1).join('/')) return; // Check navigazione
+                    try {
+                        const data = await apiCall("listFolder", { path: folder.path_display });
+                        const jsonFile = data.entries.find(e => e['.tag'] === 'file' && e.name.endsWith('.json'));
+                        if (jsonFile) {
+                            foundJsonPath = jsonFile.path_display;
+                            break;
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            // Se l'abbiamo trovato, disegnamo la dashboard.
+            if (foundJsonPath && currentNavPath.split('/').length === 3) { // Ensure we are still in Depth 2
+                await renderLocalDashboardFromJSON(foundJsonPath);
+            } else {
+                document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full py-4 text-center text-blue-200">Nessun file dati rilevato per questo cantiere.</div>';
+            }
+        }
+
+        async function renderLocalDashboardFromJSON(jsonPath) {
             try {
                 const linkData = await apiCall("getTemporaryLink", { path: jsonPath });
                 const response = await fetch(linkData.link);
@@ -379,99 +449,138 @@
                 const grid = document.getElementById('metadata-grid');
                 grid.innerHTML = ''; 
                 
-                // Mappiamo ESATTAMENTE i campi della tua app frontend
                 const items = [
                     { icon: 'fa-hard-hat text-orange-400', label: 'Operatore', value: meta.operatore || meta.operator || 'N/D' },
                     { icon: 'fa-map-marker-alt text-red-400', label: 'Luogo / Indirizzo', value: meta.luogo || meta.luogoLavoro || meta.place || 'N/D' },
                     { icon: 'fa-bolt text-yellow-400', label: 'Potenza', value: meta.potenza || meta.power ? (meta.potenza + ' kW') : 'N/D' },
                     { icon: 'fa-clipboard text-emerald-400', label: 'Note', value: meta.note || meta.notes || '-' },
-                    { icon: 'fa-camera-retro text-blue-300', label: 'Archivio Foto', value: `<span id="meta-total-photos" class="text-3xl">${currentSiteTotalPhotos}</span>` }
+                    // Invece di usare un numero statico, agganciamo l'ID al contatore ricorsivo!
+                    { icon: 'fa-camera-retro text-blue-300', label: 'Archivio Totale', value: `<span id="local-photos-count" class="text-3xl">0</span> <i id="local-spinner" class="fas fa-circle-notch fa-spin text-sm ml-2 opacity-70"></i>` }
                 ];
 
                 items.forEach((item, index) => {
-                    // Rendiamo l'ultimo box (Foto) un po' più evidente
                     const isLast = index === items.length - 1;
                     const bgClass = isLast ? 'bg-blue-600/30 border-blue-400/50' : 'bg-black/20 border-white/10';
-                    
                     grid.innerHTML += `
-                        <div class="${bgClass} p-4 rounded-xl border backdrop-blur-md shadow-sm hover:bg-white/10 transition">
+                        <div class="${bgClass} p-4 rounded-xl border backdrop-blur-md shadow-sm">
                             <p class="text-blue-200 text-[10px] font-bold uppercase mb-1 flex items-center tracking-wider opacity-80">
                                 <i class="fas ${item.icon} w-4 mr-1"></i> ${item.label}
                             </p>
-                            <p class="text-lg font-bold truncate tracking-tight text-white" title="${item.value.toString().replace(/<[^>]*>?/gm, '')}">
-                                ${item.value}
-                            </p>
+                            <p class="text-lg font-bold truncate tracking-tight text-white">${item.value}</p>
                         </div>
                     `;
                 });
-                
+
+                // Avvia il conteggio ricorsivo SOLO per questo cantiere
+                startRecursiveCount(currentNavPath, 'local-photos-count', currentNavPath).then(() => {
+                    const spin = document.getElementById('local-spinner');
+                    if (spin && currentNavPath.split('/').length === 3) spin.style.display = 'none';
+                });
+
             } catch (error) {
-                console.warn("Errore durante la lettura del file JSON dei metadati.", error);
-                document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full text-blue-200">Metadati cantiere non disponibili o illeggibili.</div>';
+                document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full py-4 text-center text-blue-200">Errore lettura file dati.</div>';
             }
         }
 
         // ==========================================
-        // UTILITY: ANTEPRIMA, DOWNLOAD E BREADCRUMBS
+        // COMPONENTI UI (Card Generators)
         // ==========================================
 
+        function createBasicFolderCard(folder) {
+            const card = document.createElement('div');
+            card.className = "bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:bg-slate-50 flex items-center shadow-sm hover:shadow-md transition-all";
+            card.onclick = () => loadFolder(folder.path_display);
+            card.innerHTML = `<i class="fas fa-folder text-slate-400 text-2xl mr-3"></i><span class="font-bold text-slate-700">${folder.name}</span>`;
+            return card;
+        }
+
+        function createSiteFolderCard(folder, badgeId) {
+            const card = document.createElement('div');
+            card.className = "bg-white border border-slate-200 rounded-xl p-5 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all flex items-center justify-between group";
+            card.onclick = () => loadFolder(folder.path_display);
+            card.innerHTML = `
+                <div class="flex items-center overflow-hidden">
+                    <div class="bg-blue-50 text-blue-600 w-12 h-12 rounded-lg flex items-center justify-center mr-4 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <i class="fas fa-building text-xl"></i>
+                    </div>
+                    <span class="font-bold text-slate-800 text-lg truncate">${folder.name}</span>
+                </div>
+                <span id="${badgeId}" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-md ml-3 animate-pulse border border-slate-200">...</span>
+            `;
+            return card;
+        }
+
+        function createAreaFolderCard(folder, badgeId) {
+            const card = document.createElement('div');
+            card.className = "bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all flex items-center justify-between group";
+            card.onclick = () => loadFolder(folder.path_display);
+            card.innerHTML = `
+                <div class="flex items-center overflow-hidden">
+                    <div class="text-yellow-500 text-2xl mr-3 group-hover:scale-110 transition-transform"><i class="fas fa-folder"></i></div>
+                    <span class="font-semibold text-slate-700 truncate">${folder.name}</span>
+                </div>
+                <span id="${badgeId}" class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md ml-2 animate-pulse">...</span>
+            `;
+            return card;
+        }
+
+        function createPhotoCard(photo, safeId) {
+            const card = document.createElement('div');
+            card.className = "bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col";
+            card.innerHTML = `
+                <div class="h-44 relative overflow-hidden bg-slate-100 flex items-center justify-center skeleton" id="container-${safeId}">
+                    <img id="${safeId}" src="" class="w-full h-full object-cover hidden transition-transform duration-700 group-hover:scale-110" alt="${photo.name}">
+                    <div class="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[1px]">
+                        <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="bg-white text-slate-900 font-bold py-2.5 px-5 rounded-full shadow-xl hover:bg-blue-50 transform translate-y-4 group-hover:translate-y-0 transition-all flex items-center">
+                            <i class="fas fa-download mr-2"></i> Scarica
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3 bg-white border-t border-slate-50"><p class="text-xs font-semibold text-slate-600 truncate">${photo.name}</p></div>
+            `;
+            return card;
+        }
+
+        // ==========================================
+        // UTILITY
+        // ==========================================
         async function fetchImagePreview(filePath, imgId) {
             try {
                 const data = await apiCall("getTemporaryLink", { path: filePath });
                 const imgEl = document.getElementById(imgId);
                 const containerEl = document.getElementById('container-' + imgId);
-                
                 if (imgEl && containerEl) {
                     imgEl.src = data.link;
-                    imgEl.onload = () => {
-                        imgEl.classList.remove('hidden');
-                        containerEl.classList.remove('skeleton');
-                    };
+                    imgEl.onload = () => { imgEl.classList.remove('hidden'); containerEl.classList.remove('skeleton'); };
                 }
             } catch (error) {
                 const containerEl = document.getElementById('container-' + imgId);
-                if (containerEl) {
-                    containerEl.classList.remove('skeleton');
-                    containerEl.innerHTML = '<i class="fas fa-image-slash text-slate-300 text-3xl"></i>';
-                }
+                if (containerEl) { containerEl.classList.remove('skeleton'); containerEl.innerHTML = '<i class="fas fa-image-slash text-slate-300 text-3xl"></i>'; }
             }
         }
 
         async function downloadFile(path, filename) {
             try {
                 const data = await apiCall("getTemporaryLink", { path: path });
-                const a = document.createElement('a');
-                a.href = data.link;
-                a.download = filename;
-                a.target = '_blank';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } catch (error) {
-                alert("Errore durante la generazione del link.");
-            }
+                const a = document.createElement('a'); a.href = data.link; a.download = filename; a.target = '_blank';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            } catch (error) { alert("Errore generazione link."); }
         }
 
         function renderBreadcrumbs(path) {
             const breadcrumbs = document.getElementById('breadcrumbs');
-            
             if (path === "" || path === "/") {
-                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:text-blue-800 flex items-center"><i class="fas fa-home mr-2 text-lg"></i> Root Cantieri</button>`;
+                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 flex items-center"><i class="fas fa-home mr-2 text-lg"></i> App Root</button>`;
                 return;
             }
-
             const parts = path.split('/').filter(p => p !== '');
             let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="text-slate-500 hover:text-blue-600 transition flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
-            
             let currentBuildPath = "";
             parts.forEach((part, index) => {
                 currentBuildPath += '/' + part;
                 html += ` <i class="fas fa-chevron-right text-[10px] text-slate-300 mx-2"></i> `;
-                if (index === parts.length - 1) {
-                    html += `<span class="font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded border border-blue-100">${part}</span>`;
-                } else {
-                    html += `<button onclick="loadFolder('${currentBuildPath}')" class="text-slate-600 hover:text-blue-600 font-medium transition">${part}</button>`;
-                }
+                if (index === parts.length - 1) html += `<span class="font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded border border-blue-100">${part}</span>`;
+                else html += `<button onclick="loadFolder('${currentBuildPath}')" class="text-slate-600 hover:text-blue-600 font-medium transition">${part}</button>`;
             });
             breadcrumbs.innerHTML = html;
         }
