@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Animazione per i placeholder in caricamento */
         .skeleton {
             background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
             background-size: 200% 100%;
@@ -28,8 +27,7 @@
             </div>
             <h2 class="text-2xl font-bold text-gray-800 mb-2">Accesso Admin</h2>
             <p class="text-sm text-gray-500 mb-8">Connetti il tuo account per accedere all'archivio dei cantieri.</p>
-            
-            <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-4 rounded-xl hover:bg-blue-700 transition duration-300 shadow-lg hover:shadow-xl flex justify-center items-center">
+            <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-4 rounded-xl hover:bg-blue-700 transition shadow-lg flex justify-center items-center">
                 <i class="fas fa-shield-alt mr-2"></i> Accesso Sicuro
             </button>
         </div>
@@ -58,49 +56,49 @@
         <main class="container mx-auto px-4 py-8 flex-1">
             <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center space-x-2 text-sm text-gray-600 mb-6" id="breadcrumbs"></div>
 
-            <div id="metadata-panel" class="hidden bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg mb-8 text-white">
-                <div class="flex items-center justify-between border-b border-blue-400/30 pb-4 mb-4">
-                    <h2 class="text-2xl font-bold flex items-center"><i class="fas fa-clipboard-list mr-3"></i> Dati Cantiere</h2>
-                    <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">Metadati Rilevati</span>
+            <div id="metadata-panel" class="hidden bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl p-6 shadow-lg mb-8 text-white relative overflow-hidden">
+                <i class="fas fa-chart-line absolute -right-10 -bottom-10 text-9xl text-white opacity-10"></i>
+                <div class="flex items-center justify-between border-b border-blue-400/30 pb-4 mb-4 relative z-10">
+                    <h2 class="text-2xl font-bold flex items-center"><i class="fas fa-clipboard-check text-green-400 mr-3"></i> Dashboard Cantiere</h2>
+                    <span class="bg-blue-900/50 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border border-blue-400/30">Dati Rilevati</span>
                 </div>
-                <div id="metadata-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div id="metadata-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
                     </div>
             </div>
 
             <div id="loading" class="text-center py-20 hidden">
                 <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
-                <p class="text-gray-500 font-medium">Sincronizzazione archivio...</p>
+                <p class="text-gray-500 font-medium">Lettura directory...</p>
             </div>
 
-            <div id="folders-section" class="mb-8 hidden">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-folder-open text-yellow-500 mr-2"></i> Sottocartelle</h3>
+            <div id="folders-section" class="mb-10 hidden">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><i class="fas fa-folder-tree text-blue-500 mr-2"></i> Categorie / Aree</h3>
                 <div id="folders-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
             </div>
 
             <div id="photos-section" class="hidden">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-images text-blue-500 mr-2"></i> Fotografie</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><i class="fas fa-images text-blue-500 mr-2"></i> Fotografie in questa cartella</h3>
                 <div id="photos-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
             </div>
             
             <div id="empty-state" class="hidden text-center py-20">
                 <div class="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-folder-minus text-4xl text-gray-400"></i>
+                    <i class="fas fa-folder-open text-4xl text-gray-400"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-700">Cartella Vuota</h3>
-                <p class="text-gray-500">Non ci sono file o sottocartelle in questa directory.</p>
+                <h3 class="text-lg font-bold text-gray-700">Nessun Elemento</h3>
+                <p class="text-gray-500">Non ci sono file in questa directory.</p>
             </div>
         </main>
     </div>
 
     <script>
-        // ==========================================
-        // CONFIGURAZIONE
-        // ==========================================
         const WORKER_URL = "https://dfd89ks.sviluppo-49a.workers.dev"; 
         const ROOT_PATH = ""; 
         let accessToken = localStorage.getItem("db_admin_access");
+        
+        // Variabile globale per sommare i file del cantiere
+        let currentSiteTotalPhotos = 0;
 
-        // --- CORE API CALLER ---
         async function apiCall(action, payload = {}) {
             const res = await fetch(WORKER_URL, {
                 method: "POST",
@@ -119,7 +117,6 @@
             return res.json();
         }
 
-        // --- INIZIALIZZAZIONE ---
         document.addEventListener('DOMContentLoaded', () => {
             if (window.location.hash.includes('access_token')) {
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -139,7 +136,7 @@
                 const data = await apiCall("getAuthUrl");
                 if (data.success) window.location.href = data.url;
             } catch (error) {
-                alert("Errore di connessione al proxy di sicurezza.");
+                alert("Errore proxy di sicurezza.");
             }
         }
 
@@ -151,16 +148,14 @@
         async function inizializzaDashboard() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
-            
             try {
                 await apiCall("getCurrentAccount");
                 loadFolder(ROOT_PATH);
             } catch (error) {
-                if(error.message !== "Sessione scaduta") alert("Errore di connessione a Dropbox via Proxy.");
+                if(error.message !== "Sessione scaduta") alert("Errore di connessione a Dropbox.");
             }
         }
 
-        // --- MOTORE PRINCIPALE DELLA DASHBOARD ---
         async function loadFolder(path) {
             const loading = document.getElementById('loading');
             const foldersGrid = document.getElementById('folders-grid');
@@ -170,7 +165,6 @@
             const emptyState = document.getElementById('empty-state');
             const metadataPanel = document.getElementById('metadata-panel');
             
-            // Reset UI
             foldersGrid.innerHTML = '';
             photosGrid.innerHTML = '';
             foldersSec.classList.add('hidden');
@@ -179,6 +173,7 @@
             metadataPanel.classList.add('hidden');
             loading.classList.remove('hidden');
             
+            currentSiteTotalPhotos = 0; // Resetta il counter globale del cantiere
             renderBreadcrumbs(path);
 
             try {
@@ -188,7 +183,6 @@
                 const folders = entries.filter(e => e['.tag'] === 'folder');
                 const files = entries.filter(e => e['.tag'] === 'file');
                 
-                // Separiamo foto da file JSON
                 const photos = files.filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f.name));
                 const jsonFiles = files.filter(f => f.name.endsWith('.json'));
 
@@ -199,37 +193,45 @@
                     return;
                 }
 
-                // 1. GESTIONE METADATI (Ricerca automatica file JSON)
+                // Inizia il conteggio globale con le foto presenti nella radice (se ci sono)
+                currentSiteTotalPhotos += photos.length;
+
+                // 1. GESTIONE DASHBOARD CANTIERE (se trova il JSON nella root del cantiere)
                 if (jsonFiles.length > 0) {
-                    // Prende il primo file JSON trovato e lo processa
-                    loadMetadataCard(jsonFiles[0].path_display, photos.length);
+                    loadMetadataCard(jsonFiles[0].path_display);
                 }
 
-                // 2. RENDER CARTELLE
+                // 2. RENDER SOTTOCARTELLE E CALCOLO NUMERO FOTO
                 if (folders.length > 0) {
                     foldersSec.classList.remove('hidden');
-                    folders.forEach(folder => {
+                    
+                    let folderPromises = folders.map(folder => {
                         const safeId = "fcount-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
                         const card = document.createElement('div');
-                        card.className = "bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between group";
+                        card.className = "bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-500 hover:shadow-md transition-all flex items-center justify-between group";
                         card.onclick = () => loadFolder(folder.path_display);
                         card.innerHTML = `
                             <div class="flex items-center overflow-hidden">
-                                <div class="bg-yellow-50 text-yellow-500 w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <div class="bg-blue-50 text-blue-600 w-10 h-10 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 group-hover:scale-110 transition-transform">
                                     <i class="fas fa-folder text-xl"></i>
                                 </div>
                                 <span class="font-semibold text-gray-700 truncate" title="${folder.name}">${folder.name}</span>
                             </div>
-                            <span id="${safeId}" class="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md ml-2"><i class="fas fa-circle-notch fa-spin"></i></span>
+                            <span id="${safeId}" class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md ml-2 border border-gray-200"><i class="fas fa-spinner fa-spin"></i></span>
                         `;
                         foldersGrid.appendChild(card);
 
-                        // Carica asincronamente il conteggio dei file per questa sottocartella
-                        fetchFolderCount(folder.path_display, safeId);
+                        return fetchFolderCount(folder.path_display, safeId);
+                    });
+
+                    // Spegne il "loader" del totale foto nel pannello cantiere quando tutte le sottocartelle sono state ispezionate
+                    Promise.all(folderPromises).then(() => {
+                        const spinner = document.getElementById('meta-spinner');
+                        if(spinner) spinner.style.display = 'none';
                     });
                 }
 
-                // 3. RENDER FOTO (Con anteprime)
+                // 3. RENDER FOTO (Lazy Load Anteprime)
                 if (photos.length > 0) {
                     photosSec.classList.remove('hidden');
                     photos.forEach(photo => {
@@ -242,18 +244,15 @@
                                 <img id="${safeId}" src="" class="w-full h-full object-cover hidden transition-transform duration-700 group-hover:scale-110" alt="${photo.name}">
                                 <div class="absolute inset-0 bg-gray-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                     <button onclick="downloadFile('${photo.path_display}', '${photo.name}')" class="bg-white text-gray-900 font-bold py-2 px-4 rounded-full shadow-lg hover:bg-blue-50 transform translate-y-4 group-hover:translate-y-0 transition-all">
-                                        <i class="fas fa-download mr-1"></i> Scarica
+                                        <i class="fas fa-download mr-1"></i>
                                     </button>
                                 </div>
                             </div>
-                            <div class="p-3 bg-white border-t border-gray-50 flex items-center justify-between">
-                                <p class="text-xs font-medium text-gray-600 truncate mr-2" title="${photo.name}">${photo.name}</p>
-                                <span class="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded">JPG</span>
+                            <div class="p-3 bg-white border-t border-gray-50 flex flex-col">
+                                <p class="text-xs font-medium text-gray-600 truncate" title="${photo.name}">${photo.name}</p>
                             </div>
                         `;
                         photosGrid.appendChild(card);
-
-                        // Carica asincronamente l'immagine
                         fetchImagePreview(photo.path_display, safeId);
                     });
                 }
@@ -261,69 +260,65 @@
             } catch (error) {
                 loading.classList.add('hidden');
                 console.error(error);
-                alert("Errore nel caricamento della cartella.");
+                alert("Errore nel caricamento della directory.");
             }
         }
 
-        // --- FUNZIONI ASINCRONE DI SUPPORTO ---
-
-        // 1. Genera il pannello riassuntivo leggendo il file JSON
-        async function loadMetadataCard(jsonPath, photoCount) {
+        async function loadMetadataCard(jsonPath) {
             try {
-                // Ottiene il link diretto al JSON
                 const linkData = await apiCall("getTemporaryLink", { path: jsonPath });
-                // Scarica e analizza il JSON direttamente nel browser
                 const response = await fetch(linkData.link);
                 const meta = await response.json();
 
                 const panel = document.getElementById('metadata-panel');
                 const grid = document.getElementById('metadata-grid');
-                grid.innerHTML = ''; // Svuota dati vecchi
+                grid.innerHTML = ''; 
                 
-                // Costruiamo i blocchi informativi dinamicamente.
-                // Modifica le chiavi in base a come sono salvate realmente nel tuo JSON (es. meta.operatore, meta.cantiere)
                 const items = [
-                    { icon: 'fa-hard-hat', label: 'Operatore', value: meta.operatore || meta.operator || 'Non specificato' },
-                    { icon: 'fa-building', label: 'Cantiere', value: meta.cantiere || meta.site || 'Sconosciuto' },
-                    { icon: 'fa-bolt', label: 'Potenza / Note', value: meta.potenza || meta.power || '-' },
-                    { icon: 'fa-images', label: 'Foto Trovate', value: photoCount }
+                    { icon: 'fa-hard-hat text-yellow-400', label: 'Operatore', value: meta.operatore || meta.operator || 'N/D' },
+                    { icon: 'fa-map-marker-alt text-red-400', label: 'Cantiere', value: meta.cantiere || meta.site || 'N/D' },
+                    { icon: 'fa-bolt text-yellow-300', label: 'Potenza / Note', value: meta.potenza || meta.power || '-' },
+                    { icon: 'fa-camera text-blue-300', label: 'Archivio Totale', value: `<span id="meta-total-photos">${currentSiteTotalPhotos}</span> <i class="fas fa-circle-notch fa-spin text-[10px] ml-1 opacity-70" id="meta-spinner"></i>` }
                 ];
 
                 items.forEach(item => {
                     grid.innerHTML += `
-                        <div class="bg-white/10 p-4 rounded-xl border border-white/20 backdrop-blur-sm">
-                            <p class="text-blue-200 text-xs font-semibold uppercase mb-1 flex items-center">
-                                <i class="fas ${item.icon} w-4"></i> ${item.label}
+                        <div class="bg-black/20 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+                            <p class="text-blue-200 text-xs font-semibold uppercase mb-1 flex items-center tracking-wider">
+                                <i class="fas ${item.icon} w-5"></i> ${item.label}
                             </p>
-                            <p class="text-lg font-bold truncate" title="${item.value}">${item.value}</p>
+                            <p class="text-xl font-bold truncate tracking-tight" title="${item.value.toString().replace(/<[^>]*>?/gm, '')}">${item.value}</p>
                         </div>
                     `;
                 });
 
                 panel.classList.remove('hidden');
             } catch (error) {
-                console.warn("Impossibile leggere il file JSON dei metadati.", error);
+                console.warn("Impossibile generare la dashboard dal file JSON.");
             }
         }
 
-        // 2. Conta i file in una sottocartella senza aprire la pagina
         async function fetchFolderCount(folderPath, elementId) {
             try {
                 const data = await apiCall("listFolder", { path: folderPath });
-                const count = data.entries.filter(e => e['.tag'] === 'file').length;
+                const count = data.entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name)).length;
+                
                 const badge = document.getElementById(elementId);
-                if(badge) badge.innerHTML = `<i class="fas fa-file-image mr-1"></i>${count}`;
+                if(badge) badge.innerHTML = `${count} file`;
+
+                // Aggiorna in tempo reale il numero totale nella dashboard madre!
+                currentSiteTotalPhotos += count;
+                const totalSpan = document.getElementById('meta-total-photos');
+                if (totalSpan) totalSpan.innerText = currentSiteTotalPhotos + " Foto";
+
             } catch (e) {
                 const badge = document.getElementById(elementId);
                 if(badge) badge.innerHTML = "?";
             }
         }
 
-        // 3. Scarica il link dell'immagine per mostrarla come anteprima
         async function fetchImagePreview(filePath, imgId) {
             try {
-                // Usiamo il TemporaryLink come src per l'immagine. 
-                // NOTA: Se il worker avesse un'azione "getThumbnail", sarebbe ancora più veloce!
                 const data = await apiCall("getTemporaryLink", { path: filePath });
                 const imgEl = document.getElementById(imgId);
                 const containerEl = document.getElementById('container-' + imgId);
@@ -332,11 +327,10 @@
                     imgEl.src = data.link;
                     imgEl.onload = () => {
                         imgEl.classList.remove('hidden');
-                        containerEl.classList.remove('skeleton'); // Rimuove l'animazione di caricamento
+                        containerEl.classList.remove('skeleton');
                     };
                 }
             } catch (error) {
-                console.error("Errore caricamento anteprima:", error);
                 const containerEl = document.getElementById('container-' + imgId);
                 if (containerEl) {
                     containerEl.classList.remove('skeleton');
@@ -345,7 +339,6 @@
             }
         }
 
-        // --- DOWNLOAD E NAVIGAZIONE ---
         async function downloadFile(path, filename) {
             try {
                 const data = await apiCall("getTemporaryLink", { path: path });
@@ -370,7 +363,7 @@
             }
 
             const parts = path.split('/').filter(p => p !== '');
-            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="text-gray-500 hover:text-blue-600 transition flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
+            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="text-gray-500 hover:text-blue-600 transition flex items-center"><i class="fas fa-home mr-1"></i> Home</button>`;
             
             let currentBuildPath = "";
             parts.forEach((part, index) => {
