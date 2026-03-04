@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Operatore - Archivio Foto</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropbox.js/10.33.0/Dropbox-sdk.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
@@ -13,11 +12,11 @@
     <div id="login-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50 hidden">
         <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
             <i class="fab fa-dropbox text-6xl text-blue-500 mb-4"></i>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">Accesso Operatore</h2>
-            <p class="text-sm text-gray-500 mb-6">Connetti il tuo account Dropbox per visualizzare le cartelle dell'App.</p>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Accesso Amministratore</h2>
+            <p class="text-sm text-gray-500 mb-6">Connetti il tuo account per visualizzare l'archivio.</p>
             
             <button onclick="avviaLoginDropbox()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 transition duration-200 shadow">
-                <i class="fab fa-dropbox mr-2"></i> Accedi con Dropbox
+                <i class="fas fa-shield-alt mr-2"></i> Accesso Sicuro
             </button>
         </div>
     </div>
@@ -47,36 +46,44 @@
 
     <script>
         // ==========================================
-        // CONFIGURAZIONE DROPBOX OAUTH
+        // CONFIGURAZIONE PROXY CLOUDFLARE
         // ==========================================
-        const DROPBOX_APP_KEY = "0kimqzc29he9w1u";
+        const WORKER_URL = "https://dfd89ks.sviluppo-49a.workers.dev"; 
         
-        // Deve essere l'URL ESATTO in cui è ospitata la pagina (es. su GitHub Pages)
-        const REDIRECT_URI = "https://evotechlab.github.io/fieldcamdash/"; 
-        
-        // Lascia vuoto ("") per la radice dell'App Folder, oppure specifica la cartella (es. "/Foto")
-        const BASE_FOLDER = ""; 
+        // Base Folder non esiste più nel front-end! La radice è semplicemente ""
+        const ROOT_PATH = ""; 
+        let accessToken = localStorage.getItem("db_admin_access");
 
-        let accessToken = localStorage.getItem("db_access");
-        let dbx;
+        // Helper per chiamare il proxy in modo pulito
+        async function apiCall(action, payload = {}) {
+            const res = await fetch(WORKER_URL, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    ...(accessToken ? { "Authorization": `Bearer ${accessToken}` } : {})
+                },
+                body: JSON.stringify({ action, ...payload })
+            });
 
-        // Inizializzazione al caricamento della pagina
+            if (res.status === 401) {
+                logout();
+                throw new Error("Sessione scaduta");
+            }
+            if (!res.ok) throw new Error(await res.text());
+            return res.json();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            // 1. Controlliamo se stiamo tornando da Dropbox con il token nell'URL (URL Fragment)
             if (window.location.hash.includes('access_token')) {
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
                 const token = hashParams.get('access_token');
-                
                 if (token) {
-                    // Salviamo il token
-                    localStorage.setItem("db_access", token);
+                    localStorage.setItem("db_admin_access", token);
                     accessToken = token;
-                    // Ripuliamo l'URL per estetica e sicurezza
                     window.history.replaceState(null, null, window.location.pathname);
                 }
             }
 
-            // 2. Se abbiamo il token, apriamo la dashboard, altrimenti schermata di login
             if (accessToken) {
                 inizializzaDashboard();
             } else {
@@ -84,15 +91,17 @@
             }
         });
 
-        // Genera il link di autorizzazione e reindirizza l'utente a Dropbox
-        function avviaLoginDropbox() {
-            // Usiamo il flusso "Implicit Grant" (response_type=token) ideale per le app client-side
-            const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${DROPBOX_APP_KEY}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
-            window.location.href = authUrl;
+        async function avviaLoginDropbox() {
+            try {
+                const data = await apiCall("getAuthUrl");
+                if (data.success) window.location.href = data.url;
+            } catch (error) {
+                alert("Errore di connessione al proxy di sicurezza.");
+            }
         }
 
         function logout() {
-            localStorage.removeItem("db_access");
+            localStorage.removeItem("db_admin_access");
             window.location.reload();
         }
 
@@ -100,26 +109,18 @@
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
             
-            dbx = new Dropbox.Dropbox({ accessToken: accessToken });
-            
             try {
-                // Verifichiamo se il token è ancora valido
-                await dbx.usersGetCurrentAccount();
+                // Sostituisce dbx.usersGetCurrentAccount()
+                await apiCall("getCurrentAccount");
                 document.getElementById('status').innerHTML = '<i class="fas fa-check-circle text-green-400"></i> Connesso';
-                loadFolder(BASE_FOLDER);
+                loadFolder(ROOT_PATH);
             } catch (error) {
-                // Se c'è un errore 401, il token salvato è scaduto o revocato
-                if (error.status === 401) {
-                    alert("La sessione è scaduta. Effettua nuovamente l'accesso.");
-                    logout();
-                } else {
-                    document.getElementById('status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-400"></i> Errore di connessione';
-                    console.error(error);
-                }
+                document.getElementById('status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-400"></i> Errore';
+                if(error.message !== "Sessione scaduta") console.error(error);
             }
         }
 
-        // --- FUNZIONI DI LETTURA DROPBOX ---
+        // --- FUNZIONI DI LETTURA VIA PROXY ---
         async function loadFolder(path) {
             const grid = document.getElementById('content-grid');
             const loading = document.getElementById('loading');
@@ -129,11 +130,12 @@
             renderBreadcrumbs(path);
 
             try {
-                const response = await dbx.filesListFolder({ path: path });
-                const entries = response.result.entries;
+                // Sostituisce dbx.filesListFolder()
+                const data = await apiCall("listFolder", { path: path });
+                const entries = data.entries || [];
 
                 const folders = entries.filter(e => e['.tag'] === 'folder');
-                const photos = entries.filter(e => e['.tag'] === 'file'); // Filtra estensioni se necessario
+                const photos = entries.filter(e => e['.tag'] === 'file');
 
                 loading.classList.add('hidden');
 
@@ -150,7 +152,7 @@
                     card.className = "bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm flex flex-col";
                     card.innerHTML = `
                         <div class="bg-gray-200 h-40 flex items-center justify-center text-gray-400 border-b border-gray-100">
-                            <i class="fas fa-image text-5xl"></i>
+                            <i class="fas fa-file-alt text-5xl"></i>
                         </div>
                         <div class="p-4 flex-1 flex flex-col justify-between">
                             <p class="text-sm font-medium text-gray-700 truncate mb-3" title="${photo.name}">${photo.name}</p>
@@ -170,9 +172,10 @@
 
         async function downloadFile(path, filename) {
             try {
-                const response = await dbx.filesGetTemporaryLink({ path: path });
+                // Sostituisce dbx.filesGetTemporaryLink()
+                const data = await apiCall("getTemporaryLink", { path: path });
                 const a = document.createElement('a');
-                a.href = response.result.link;
+                a.href = data.link;
                 a.download = filename;
                 a.target = '_blank';
                 document.body.appendChild(a);
@@ -186,19 +189,16 @@
 
         function renderBreadcrumbs(path) {
             const breadcrumbs = document.getElementById('breadcrumbs');
-            // Se siamo alla radice (BASE_FOLDER)
-            if (path === BASE_FOLDER) {
-                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:underline flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
+            
+            if (path === "" || path === "/") {
+                breadcrumbs.innerHTML = `<button class="font-bold text-blue-700 hover:underline flex items-center"><i class="fas fa-home mr-1"></i> Archivio</button>`;
                 return;
             }
 
-            // Calcola il percorso relativo rimuovendo la BASE_FOLDER
-            const relativePath = path.substring(BASE_FOLDER.length);
-            const parts = relativePath.split('/').filter(p => p !== '');
+            const parts = path.split('/').filter(p => p !== '');
+            let html = `<button onclick="loadFolder('${ROOT_PATH}')" class="hover:underline text-gray-500 flex items-center"><i class="fas fa-home mr-1"></i> Archivio</button>`;
             
-            let html = `<button onclick="loadFolder('${BASE_FOLDER}')" class="hover:underline text-gray-500 flex items-center"><i class="fas fa-home mr-1"></i> Root</button>`;
-            
-            let currentBuildPath = BASE_FOLDER;
+            let currentBuildPath = "";
             parts.forEach((part, index) => {
                 currentBuildPath += '/' + part;
                 html += ` <i class="fas fa-chevron-right text-xs text-gray-400 mx-2"></i> `;
