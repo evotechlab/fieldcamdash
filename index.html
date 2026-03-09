@@ -20,6 +20,24 @@
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
 
+    <div id="app-lock-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-[60] hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="bg-slate-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200">
+                <i class="fas fa-lock text-4xl text-slate-700"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Area Riservata</h2>
+            <p class="text-sm text-slate-500 mb-8">Inserisci le credenziali aziendali per sbloccare l'applicazione.</p>
+            
+            <input type="text" id="adminUser" placeholder="Nome Utente" class="w-full p-4 mb-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition text-slate-700 font-medium">
+            <input type="password" id="adminPass" placeholder="Password" class="w-full p-4 mb-6 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition text-slate-700 font-medium">
+            
+            <button onclick="verifyAppLock()" id="unlockBtn" class="w-full bg-slate-800 text-white font-bold p-4 rounded-xl hover:bg-slate-900 transition shadow-lg flex justify-center items-center active:scale-95">
+                <i class="fas fa-key mr-2"></i> Accedi
+            </button>
+            <p id="lockError" class="text-red-500 text-sm mt-4 hidden font-semibold bg-red-50 py-2 rounded-lg border border-red-100"></p>
+        </div>
+    </div>
+
     <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 hidden">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
             <div class="bg-blue-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -46,7 +64,7 @@
                     <span id="status" class="text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full font-medium flex items-center shadow-sm">
                         <i class="fas fa-circle text-[10px] mr-2 text-emerald-500"></i> Online
                     </span>
-                    <button onclick="logout()" class="text-slate-500 hover:text-red-600 transition p-2 rounded-lg hover:bg-red-50">
+                    <button onclick="logoutAll()" class="text-slate-500 hover:text-red-600 transition p-2 rounded-lg hover:bg-red-50" title="Disconnetti Completamente">
                         <i class="fas fa-sign-out-alt text-lg"></i>
                     </button>
                 </div>
@@ -131,10 +149,12 @@
         // ==========================================
         const WORKER_URL = "https://dfd89ks.sviluppo-49a.workers.dev"; 
         const ROOT_PATH = "/FieldCam"; 
-        let accessToken = localStorage.getItem("db_admin_access");
         
-        let currentNavPath = ""; // Variabile cruciale per bloccare i caricamenti in background se l'utente cambia pagina
-        let runningRecursiveCount = 0; // Contatore live per dashboard
+        let accessToken = localStorage.getItem("db_admin_access");
+        let isAppUnlocked = localStorage.getItem("fc_dash_unlocked") === "true"; // Controllo serratura aziendale
+        
+        let currentNavPath = ""; 
+        let runningRecursiveCount = 0; 
 
         async function apiCall(action, payload = {}) {
             const res = await fetch(WORKER_URL, {
@@ -146,16 +166,70 @@
                 body: JSON.stringify({ action, ...payload })
             });
 
-            if (res.status === 401) {
-                logout();
+            if (res.status === 401 && action !== "verifyLogin") { // Ignora i 401 del login aziendale
+                logout(); // Pulisce solo dropbox se scade il token
                 throw new Error("Sessione scaduta");
             }
             if (!res.ok) throw new Error(await res.text());
             return res.json();
         }
 
-        // --- INIZIALIZZAZIONE ---
+        // --- INIZIALIZZAZIONE CON DOPPIO CONTROLLO ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Se non è sbloccato, mostra il lucchetto e aspetta.
+            if (!isAppUnlocked) {
+                document.getElementById('app-lock-screen').classList.remove('hidden');
+            } else {
+                avviaFlussoDropbox();
+            }
+        });
+
+        // --- FUNZIONI DI SBLOCCO APP (AZIENDALE) ---
+        async function verifyAppLock() {
+            const user = document.getElementById('adminUser').value.trim();
+            const pass = document.getElementById('adminPass').value.trim();
+            const btn = document.getElementById('unlockBtn');
+            const err = document.getElementById('lockError');
+            
+            if(!user || !pass) return;
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Verifica in corso...';
+            btn.disabled = true;
+            err.classList.add('hidden');
+            
+            try {
+                const res = await fetch(WORKER_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "verifyLogin", user: user, pass: pass })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem("fc_dash_unlocked", "true");
+                    isAppUnlocked = true;
+                    document.getElementById('app-lock-screen').classList.add('hidden');
+                    avviaFlussoDropbox();
+                } else {
+                    err.innerText = "Credenziali errate. Riprova.";
+                    err.classList.remove('hidden');
+                    resetBtn(btn);
+                }
+            } catch (error) {
+                err.innerText = "Errore di rete. Impossibile contattare il server.";
+                err.classList.remove('hidden');
+                resetBtn(btn);
+            }
+        }
+
+        function resetBtn(btn) {
+            btn.innerHTML = '<i class="fas fa-key mr-2"></i> Accedi';
+            btn.disabled = false;
+        }
+
+        // --- FLUSSO DROPBOX (ESEGUITO SOLO SE SBLOCCATO) ---
+        function avviaFlussoDropbox() {
             if (window.location.hash.includes('access_token')) {
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
                 const token = hashParams.get('access_token');
@@ -167,7 +241,7 @@
             }
             if (accessToken) inizializzaDashboard();
             else document.getElementById('login-screen').classList.remove('hidden');
-        });
+        }
 
         async function avviaLoginDropbox() {
             try {
@@ -177,7 +251,15 @@
         }
 
         function logout() {
+            // Svuota solo Dropbox (se scade la sessione dbx)
             localStorage.removeItem("db_admin_access");
+            window.location.reload();
+        }
+
+        function logoutAll() {
+            // Tasto uscita totale (Svuota sia dbx che lucchetto)
+            localStorage.removeItem("db_admin_access");
+            localStorage.removeItem("fc_dash_unlocked");
             window.location.reload();
         }
 
@@ -196,14 +278,8 @@
         // MOTORE DI NAVIGAZIONE E LIVELLI
         // ==========================================
         async function loadFolder(path) {
-            // Aggiorna il percorso corrente (ferma i loop ricorsivi vecchi)
             currentNavPath = path; 
             
-            // Calcolo Profondità:
-            // "" -> Array Vuoto -> Depth 0
-            // "/FieldCam" -> ["FieldCam"] -> Depth 1 (Globale)
-            // "/FieldCam/Roma_Sud" -> ["FieldCam", "Roma_Sud"] -> Depth 2 (Locale)
-            // "/FieldCam/Roma_Sud/Inverter" -> Depth 3 (Contenuto)
             const parts = path.split('/').filter(p => p !== '');
             const depth = parts.length;
 
@@ -211,7 +287,6 @@
             const foldersGrid = document.getElementById('folders-grid');
             const photosGrid = document.getElementById('photos-grid');
             
-            // Nascondi tutte le sezioni
             document.getElementById('global-dashboard').classList.add('hidden');
             document.getElementById('local-dashboard').classList.add('hidden');
             document.getElementById('folders-section').classList.add('hidden');
@@ -239,9 +314,6 @@
                     return;
                 }
 
-                // ------------------------------------------
-                // LIVELLO 0: ROOT
-                // ------------------------------------------
                 if (depth === 0) {
                     if (folders.length > 0) {
                         document.getElementById('folders-section').classList.remove('hidden');
@@ -252,15 +324,10 @@
                         });
                     }
                 } 
-                
-                // ------------------------------------------
-                // LIVELLO 1: DASHBOARD GLOBALE
-                // ------------------------------------------
                 else if (depth === 1) {
                     document.getElementById('global-dashboard').classList.remove('hidden');
                     document.getElementById('global-sites-count').innerText = folders.length;
                     
-                    // Reset e avvio del contatore globale ricorsivo
                     runningRecursiveCount = 0;
                     document.getElementById('global-photos-count').innerText = "0";
                     document.getElementById('global-spinner').style.display = 'inline-block';
@@ -275,26 +342,18 @@
                             const safeId = "badge-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
                             const card = createSiteFolderCard(folder, safeId);
                             foldersGrid.appendChild(card);
-                            // Lancia calcolo badge ricorsivo per il cantiere
                             calculateBadgeRecursive(folder.path_display, safeId, currentNavPath);
                         });
                     }
                 } 
-                
-                // ------------------------------------------
-                // LIVELLO 2: DASHBOARD LOCALE (CANTIERE)
-                // ------------------------------------------
                 else if (depth === 2) {
                     document.getElementById('local-dashboard').classList.remove('hidden');
                     document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full py-6 text-center text-blue-200"><i class="fas fa-spinner fa-spin text-2xl mr-2"></i> Analisi Cantiere...</div>';
                     
-                    // Reset e avvio del contatore locale ricorsivo per la dashboard cantiere
                     runningRecursiveCount = 0;
                     
-                    // 1. Cerca metadati nelle sottocartelle (se non ci sono nella root del cantiere)
                     findAndRenderMetadata(folders, jsonFiles);
                     
-                    // 2. Renderizza le Aree
                     if (folders.length > 0) {
                         document.getElementById('folders-section').classList.remove('hidden');
                         document.getElementById('folders-title').innerHTML = `<i class="fas fa-layer-group text-blue-500 mr-2"></i> Aree Lavoro`;
@@ -302,15 +361,10 @@
                             const safeId = "badge-" + folder.id.replace(/[^a-zA-Z0-9]/g, '');
                             const card = createAreaFolderCard(folder, safeId);
                             foldersGrid.appendChild(card);
-                            // Lancia calcolo badge ricorsivo per l'area
                             calculateBadgeRecursive(folder.path_display, safeId, currentNavPath);
                         });
                     }
                 } 
-                
-                // ------------------------------------------
-                // LIVELLO 3+: FOTO E SOTTOCARTELLE
-                // ------------------------------------------
                 else {
                     if (folders.length > 0) {
                         document.getElementById('folders-section').classList.remove('hidden');
@@ -344,10 +398,8 @@
         // ==========================================
         // MOTORE DI CONTEGGIO RICORSIVO
         // ==========================================
-
-        // Conta le foto in tutto l'albero e aggiorna un elemento testo in tempo reale
         async function startRecursiveCount(folderPath, elementId, validNavPath) {
-            if (currentNavPath !== validNavPath) return; // L'utente ha cambiato pagina, interrompi!
+            if (currentNavPath !== validNavPath) return; 
             
             try {
                 const data = await apiCall("listFolder", { path: folderPath });
@@ -356,12 +408,10 @@
                 const entries = data.entries || [];
                 const photos = entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name));
                 
-                // Aggiorna variabile globale e UI
                 runningRecursiveCount += photos.length;
                 const el = document.getElementById(elementId);
                 if (el) el.innerText = runningRecursiveCount;
 
-                // Esplora le sottocartelle
                 const folders = entries.filter(e => e['.tag'] === 'folder');
                 for (let f of folders) {
                     await startRecursiveCount(f.path_display, elementId, validNavPath);
@@ -369,7 +419,6 @@
             } catch (e) { /* Ignora errori di permessi su singole cartelle */ }
         }
 
-        // Conta le foto per i "Badge" grigi delle cartelline, in modo isolato
         async function calculateBadgeRecursive(folderPath, badgeId, validNavPath) {
             let localTotal = 0;
 
@@ -383,7 +432,6 @@
                     const photos = entries.filter(e => e['.tag'] === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(e.name));
                     localTotal += photos.length;
 
-                    // Aggiorna il badge live durante la scansione
                     const badge = document.getElementById(badgeId);
                     if (badge) badge.innerHTML = `<i class="far fa-image mr-1"></i> ${localTotal}`;
 
@@ -396,7 +444,6 @@
 
             await recurse(folderPath);
             
-            // Fine conteggio: rimuove l'animazione pulsante se siamo ancora sulla stessa pagina
             if (currentNavPath === validNavPath) {
                 const badge = document.getElementById(badgeId);
                 if (badge) {
@@ -409,18 +456,15 @@
         // ==========================================
         // GESTIONE METADATI (JSON)
         // ==========================================
-        
         async function findAndRenderMetadata(folders, rootJsonFiles) {
             let foundJsonPath = null;
             
-            // 1. Controlla prima se c'è un JSON nella radice del cantiere
             if (rootJsonFiles && rootJsonFiles.length > 0) {
                 foundJsonPath = rootJsonFiles[0].path_display;
             } 
-            // 2. Altrimenti sbircia velocemente nelle sottocartelle
             else {
                 for (let folder of folders) {
-                    if (currentNavPath !== folder.path_display.split('/').slice(0,-1).join('/')) return; // Check navigazione
+                    if (currentNavPath !== folder.path_display.split('/').slice(0,-1).join('/')) return; 
                     try {
                         const data = await apiCall("listFolder", { path: folder.path_display });
                         const jsonFile = data.entries.find(e => e['.tag'] === 'file' && e.name.endsWith('.json'));
@@ -432,8 +476,7 @@
                 }
             }
 
-            // Se l'abbiamo trovato, disegnamo la dashboard.
-            if (foundJsonPath && currentNavPath.split('/').length === 3) { // Ensure we are still in Depth 2
+            if (foundJsonPath && currentNavPath.split('/').length === 3) {
                 await renderLocalDashboardFromJSON(foundJsonPath);
             } else {
                 document.getElementById('metadata-grid').innerHTML = '<div class="col-span-full py-4 text-center text-blue-200">Nessun file dati rilevato per questo cantiere.</div>';
@@ -454,7 +497,6 @@
                     { icon: 'fa-map-marker-alt text-red-400', label: 'Luogo / Indirizzo', value: meta.luogo || meta.luogoLavoro || meta.place || 'N/D' },
                     { icon: 'fa-bolt text-yellow-400', label: 'Potenza', value: meta.potenza || meta.power ? (meta.potenza + ' kW') : 'N/D' },
                     { icon: 'fa-clipboard text-emerald-400', label: 'Note', value: meta.note || meta.notes || '-' },
-                    // Invece di usare un numero statico, agganciamo l'ID al contatore ricorsivo!
                     { icon: 'fa-camera-retro text-blue-300', label: 'Archivio Totale', value: `<span id="local-photos-count" class="text-3xl">0</span> <i id="local-spinner" class="fas fa-circle-notch fa-spin text-sm ml-2 opacity-70"></i>` }
                 ];
 
@@ -471,7 +513,6 @@
                     `;
                 });
 
-                // Avvia il conteggio ricorsivo SOLO per questo cantiere
                 startRecursiveCount(currentNavPath, 'local-photos-count', currentNavPath).then(() => {
                     const spin = document.getElementById('local-spinner');
                     if (spin && currentNavPath.split('/').length === 3) spin.style.display = 'none';
@@ -485,7 +526,6 @@
         // ==========================================
         // COMPONENTI UI (Card Generators)
         // ==========================================
-
         function createBasicFolderCard(folder) {
             const card = document.createElement('div');
             card.className = "bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:bg-slate-50 flex items-center shadow-sm hover:shadow-md transition-all";
