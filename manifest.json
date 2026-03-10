@@ -2,14 +2,17 @@
   "name": "FieldCam Admin Dashboard",
   "short_name": "FieldDash",
   "start_url": "index.html",
+  "scope": "/fieldcamdash/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#1e40af",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "description": "Dashboard amministrativa per monitoraggio cantieri fotovoltaici.",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "./icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
